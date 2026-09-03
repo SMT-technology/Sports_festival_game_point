@@ -10,6 +10,7 @@ import type {
   ScoreAuditLog,
   ScoreRow,
 } from "@/lib/database.types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface RowState {
   scoreId?: string;
@@ -56,6 +57,9 @@ export function AdminScoresClient({
   const [auditFor, setAuditFor] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<ScoreAuditLog[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const [resetTarget, setResetTarget] = useState<{ classId: string; className: string } | null>(
+    null,
+  );
 
   const selectedEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? null,
@@ -125,6 +129,24 @@ export function AdminScoresClient({
     setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
   }
 
+  async function resetScore(classId: string) {
+    const row = rows[classId];
+    if (!row?.scoreId) {
+      setResetTarget(null);
+      return;
+    }
+    updateRow(classId, { saving: true });
+    const supabase = createClient();
+    const { error } = await supabase.from("scores").delete().eq("id", row.scoreId);
+    setResetTarget(null);
+    if (error) {
+      alert("초기화 실패: " + error.message);
+      updateRow(classId, { saving: false });
+      return;
+    }
+    setRows((prev) => ({ ...prev, [classId]: emptyRow() }));
+  }
+
   async function openAudit(classId: string) {
     const row = rows[classId];
     if (!row?.scoreId) return;
@@ -150,9 +172,10 @@ export function AdminScoresClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-lg font-bold text-slate-900">점수 직접 관리</h1>
+        <h1 className="text-lg font-bold text-slate-900">🔄 점수 초기화 / 직접 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          관리자는 잠금 여부와 관계없이 모든 점수를 직접 수정하고 변경 이력을 확인할 수 있습니다.
+          교사가 최종 제출한 점수는 본인이 스스로 고칠 수 없어요. 잘못 입력된 점수는 여기서
+          관리자가 초기화하거나 직접 수정할 수 있습니다.
         </p>
       </div>
 
@@ -278,12 +301,22 @@ export function AdminScoresClient({
                             최종 확정
                           </button>
                           {row.scoreId && (
-                            <button
-                              onClick={() => openAudit(c.id)}
-                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                            >
-                              이력
-                            </button>
+                            <>
+                              <button
+                                onClick={() => openAudit(c.id)}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                              >
+                                이력
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setResetTarget({ classId: c.id, className: classLabel(c) })
+                                }
+                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                              >
+                                🔄 초기화
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -329,6 +362,17 @@ export function AdminScoresClient({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!resetTarget}
+        title={`${resetTarget?.className ?? ""} 점수를 초기화하시겠습니까?`}
+        description="입력된 점수가 완전히 삭제되어 미입력 상태로 돌아갑니다. 되돌릴 수 없습니다."
+        confirmLabel="초기화"
+        danger
+        onCancel={() => setResetTarget(null)}
+        onConfirm={() => resetTarget && resetScore(resetTarget.classId)}
+        loading={resetTarget ? rows[resetTarget.classId]?.saving : false}
+      />
     </div>
   );
 }

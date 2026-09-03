@@ -55,9 +55,7 @@ export function InputClient({
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadedEventId, setLoadedEventId] = useState<string | null>(null);
   const loading = selectedEventId !== null && loadedEventId !== selectedEventId;
-  const [confirmTarget, setConfirmTarget] = useState<
-    { classId: string; type: "final" | "unlock" } | null
-  >(null);
+  const [confirmTarget, setConfirmTarget] = useState<{ classId: string } | null>(null);
 
   const availableGrades = useMemo(
     () => [...new Set(classes.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
@@ -212,29 +210,6 @@ export function InputClient({
     setConfirmTarget(null);
     if (error) {
       updateRow(classId, { saving: false, error: "제출 실패: " + error.message });
-      return;
-    }
-    setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
-  }
-
-  async function confirmUnlock(classId: string) {
-    const row = rows[classId];
-    if (!row?.scoreId) {
-      setConfirmTarget(null);
-      return;
-    }
-    updateRow(classId, { saving: true });
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("scores")
-      .update({ status: "draft" })
-      .eq("id", row.scoreId)
-      .select()
-      .single();
-
-    setConfirmTarget(null);
-    if (error) {
-      updateRow(classId, { saving: false, error: "수정 전환 실패: " + error.message });
       return;
     }
     setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
@@ -444,16 +419,11 @@ export function InputClient({
                         {row.status === "final" ? (
                           <>
                             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                              최종 제출 완료
+                              ✅ 최종 제출 완료
                             </span>
-                            {!selectedEvent.is_locked && (
-                              <button
-                                onClick={() => setConfirmTarget({ classId: c.id, type: "unlock" })}
-                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                              >
-                                수정하기
-                              </button>
-                            )}
+                            <span className="text-xs text-slate-400">
+                              수정하려면 관리자에게 문의하세요
+                            </span>
                           </>
                         ) : (
                           <>
@@ -469,7 +439,7 @@ export function InputClient({
                             </button>
                             <button
                               disabled={disabled}
-                              onClick={() => setConfirmTarget({ classId: c.id, type: "final" })}
+                              onClick={() => setConfirmTarget({ classId: c.id })}
                               className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
                             >
                               최종 제출
@@ -487,23 +457,12 @@ export function InputClient({
       )}
 
       <ConfirmDialog
-        open={confirmTarget?.type === "final"}
+        open={!!confirmTarget}
         title="최종으로 입력을 하시겠습니까?"
-        description="최종 제출하면 결과 화면에 즉시 반영됩니다. 제출 후에도 '수정하기'로 다시 고칠 수 있습니다."
+        description="최종 제출하면 결과 화면에 즉시 반영됩니다. 제출 후에는 본인이 다시 수정할 수 없고, 잘못 입력했다면 관리자에게 요청해야 합니다."
         confirmLabel="최종 제출"
         onCancel={() => setConfirmTarget(null)}
         onConfirm={() => confirmTarget && confirmFinal(confirmTarget.classId)}
-        loading={confirmTarget ? rows[confirmTarget.classId]?.saving : false}
-      />
-
-      <ConfirmDialog
-        open={confirmTarget?.type === "unlock"}
-        title="제출된 점수를 수정하시겠습니까?"
-        description="수정 모드로 전환되면 다시 최종 제출하기 전까지 결과 화면 집계에서 제외됩니다."
-        confirmLabel="수정하기"
-        danger
-        onCancel={() => setConfirmTarget(null)}
-        onConfirm={() => confirmTarget && confirmUnlock(confirmTarget.classId)}
         loading={confirmTarget ? rows[confirmTarget.classId]?.saving : false}
       />
 

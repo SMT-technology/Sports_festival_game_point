@@ -27,8 +27,40 @@ export default async function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-lg font-bold text-slate-900">관리자 대시보드</h1>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-lg font-bold text-slate-900">🛠️ 관리자 대시보드</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          관리자만 할 수 있는 3가지: 종목 이름 수정, 교사 계정 등록, 잘못된 점수 초기화.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Link
+          href="/admin/events"
+          className="rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-6 text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"
+        >
+          <p className="text-3xl">🏷️</p>
+          <p className="mt-2 text-lg font-extrabold">종목 이름 수정</p>
+          <p className="mt-1 text-sm text-blue-50">반대항전·미니게임 종목명을 바꿔요</p>
+        </Link>
+        <Link
+          href="/admin/teachers"
+          className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"
+        >
+          <p className="text-3xl">👩‍🏫</p>
+          <p className="mt-2 text-lg font-extrabold">교사 계정</p>
+          <p className="mt-1 text-sm text-emerald-50">계정 생성·삭제·권한 변경</p>
+        </Link>
+        <Link
+          href="/admin/scores"
+          className="rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 p-6 text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg"
+        >
+          <p className="text-3xl">🔄</p>
+          <p className="mt-2 text-lg font-extrabold">점수 초기화</p>
+          <p className="mt-1 text-sm text-orange-50">잘못 제출된 점수를 되돌려요</p>
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {cards.map((c) => (
@@ -37,30 +69,6 @@ export default async function AdminDashboard() {
             <p className="mt-1 text-sm font-bold text-slate-800">{c.value}</p>
           </div>
         ))}
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Link
-          href="/admin/events"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:border-blue-300"
-        >
-          <p className="font-semibold text-slate-800">종목·배점 관리</p>
-          <p className="mt-1 text-xs text-slate-500">종목 추가, 배점표 수정, 잠금/활성화</p>
-        </Link>
-        <Link
-          href="/admin/teachers"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:border-blue-300"
-        >
-          <p className="font-semibold text-slate-800">교사 계정 관리</p>
-          <p className="mt-1 text-xs text-slate-500">계정 생성/삭제, 권한 변경, 종목 배정</p>
-        </Link>
-        <Link
-          href="/admin/scores"
-          className="rounded-xl border border-slate-200 bg-white p-5 hover:border-blue-300"
-        >
-          <p className="font-semibold text-slate-800">점수 직접 관리</p>
-          <p className="mt-1 text-xs text-slate-500">모든 점수 조회/수정/잠금해제, 변경 이력</p>
-        </Link>
       </div>
     </div>
   );

@@ -12,6 +12,16 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState<Set<string>>(new Set());
+
+  function toggleAdvanced(id: string) {
+    setAdvancedOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const [newEvent, setNewEvent] = useState<{
     name: string;
     category: EventCategory;
@@ -114,10 +124,10 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-lg font-bold text-slate-900">종목·배점 관리</h1>
+        <h1 className="text-lg font-bold text-slate-900">🏷️ 종목 이름 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          종목별 배점표를 수정할 수 있습니다. 이미 제출된 점수에 반영하려면 &ldquo;재계산
-          적용&rdquo;을 눌러주세요.
+          종목 이름을 수정하세요. 배점표·잠금 등 세부 설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수
+          있어요.
         </p>
       </div>
 
@@ -179,50 +189,16 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
           <div key={cat}>
             <h2 className="mb-2 text-sm font-bold text-slate-700">{CATEGORY_LABEL[cat]}</h2>
             <div className="space-y-3">
-              {list.map((ev) => (
-                <div key={ev.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      value={ev.name}
-                      onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
-                      className="w-48 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
-                    />
-                    <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                      순서
+              {list.map((ev) => {
+                const isOpen = advancedOpen.has(ev.id);
+                return (
+                  <div key={ev.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-center gap-3">
                       <input
-                        type="number"
-                        value={ev.order_index}
-                        onChange={(e) =>
-                          patchLocal(ev.id, { order_index: Number(e.target.value) })
-                        }
-                        className="w-16 rounded-lg border border-slate-300 px-2 py-1"
+                        value={ev.name}
+                        onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
+                        className="w-56 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
                       />
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <input
-                        type="checkbox"
-                        checked={ev.is_active}
-                        onChange={(e) => patchLocal(ev.id, { is_active: e.target.checked })}
-                      />
-                      활성화
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <input
-                        type="checkbox"
-                        checked={ev.is_locked}
-                        onChange={(e) => patchLocal(ev.id, { is_locked: e.target.checked })}
-                      />
-                      입력 잠금
-                    </label>
-
-                    <div className="ml-auto flex gap-2">
-                      <button
-                        onClick={() => recompute(ev)}
-                        disabled={busyId === ev.id}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        재계산 적용
-                      </button>
                       <button
                         onClick={() => saveEvent(ev)}
                         disabled={busyId === ev.id}
@@ -231,72 +207,126 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         저장
                       </button>
                       <button
-                        onClick={() => setDeleteTarget(ev)}
-                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                        onClick={() => toggleAdvanced(ev.id)}
+                        className="ml-auto rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-50"
                       >
-                        삭제
+                        {isOpen ? "고급 설정 접기 ▲" : "고급 설정 ▼"}
                       </button>
                     </div>
-                  </div>
 
-                  <div className="mt-3 border-t border-slate-100 pt-3">
-                    {ev.scoring_type === "rank" && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-slate-400">
-                          순위별 점수 (표에 없는 순위는 0점)
-                        </span>
-                        {Object.entries(ev.point_table)
-                          .sort((a, b) => Number(a[0]) - Number(b[0]))
-                          .map(([rank, pts]) => (
-                            <label key={rank} className="flex items-center gap-1 text-xs">
-                              {rank}위
-                              <input
-                                type="number"
-                                value={pts}
-                                onChange={(e) =>
-                                  updatePointTable(ev, Number(rank), Number(e.target.value))
-                                }
-                                className="w-16 rounded-lg border border-slate-300 px-2 py-1"
-                              />
-                            </label>
-                          ))}
-                        <button
-                          onClick={() => addRankSlot(ev)}
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                        >
-                          + 순위 추가
-                        </button>
+                    {isOpen && (
+                      <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                            순서
+                            <input
+                              type="number"
+                              value={ev.order_index}
+                              onChange={(e) =>
+                                patchLocal(ev.id, { order_index: Number(e.target.value) })
+                              }
+                              className="w-16 rounded-lg border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={ev.is_active}
+                              onChange={(e) => patchLocal(ev.id, { is_active: e.target.checked })}
+                            />
+                            활성화
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={ev.is_locked}
+                              onChange={(e) => patchLocal(ev.id, { is_locked: e.target.checked })}
+                            />
+                            입력 잠금
+                          </label>
+                          <div className="ml-auto flex gap-2">
+                            <button
+                              onClick={() => recompute(ev)}
+                              disabled={busyId === ev.id}
+                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              재계산 적용
+                            </button>
+                            <button
+                              onClick={() => saveEvent(ev)}
+                              disabled={busyId === ev.id}
+                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              설정 저장
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(ev)}
+                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+
+                        {ev.scoring_type === "rank" && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-slate-400">
+                              순위별 점수 (표에 없는 순위는 0점)
+                            </span>
+                            {Object.entries(ev.point_table)
+                              .sort((a, b) => Number(a[0]) - Number(b[0]))
+                              .map(([rank, pts]) => (
+                                <label key={rank} className="flex items-center gap-1 text-xs">
+                                  {rank}위
+                                  <input
+                                    type="number"
+                                    value={pts}
+                                    onChange={(e) =>
+                                      updatePointTable(ev, Number(rank), Number(e.target.value))
+                                    }
+                                    className="w-16 rounded-lg border border-slate-300 px-2 py-1"
+                                  />
+                                </label>
+                              ))}
+                            <button
+                              onClick={() => addRankSlot(ev)}
+                              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                            >
+                              + 순위 추가
+                            </button>
+                          </div>
+                        )}
+                        {ev.scoring_type === "pass_fail" && (
+                          <label className="flex items-center gap-2 text-xs text-slate-500">
+                            통과 시 점수
+                            <input
+                              type="number"
+                              value={ev.pass_points}
+                              onChange={(e) =>
+                                patchLocal(ev.id, { pass_points: Number(e.target.value) })
+                              }
+                              className="w-20 rounded-lg border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                        )}
+                        {ev.scoring_type === "direct" && (
+                          <label className="flex items-center gap-2 text-xs text-slate-500">
+                            최대 점수
+                            <input
+                              type="number"
+                              value={ev.max_points}
+                              onChange={(e) =>
+                                patchLocal(ev.id, { max_points: Number(e.target.value) })
+                              }
+                              className="w-20 rounded-lg border border-slate-300 px-2 py-1"
+                            />
+                          </label>
+                        )}
                       </div>
                     )}
-                    {ev.scoring_type === "pass_fail" && (
-                      <label className="flex items-center gap-2 text-xs text-slate-500">
-                        통과 시 점수
-                        <input
-                          type="number"
-                          value={ev.pass_points}
-                          onChange={(e) =>
-                            patchLocal(ev.id, { pass_points: Number(e.target.value) })
-                          }
-                          className="w-20 rounded-lg border border-slate-300 px-2 py-1"
-                        />
-                      </label>
-                    )}
-                    {ev.scoring_type === "direct" && (
-                      <label className="flex items-center gap-2 text-xs text-slate-500">
-                        최대 점수
-                        <input
-                          type="number"
-                          value={ev.max_points}
-                          onChange={(e) =>
-                            patchLocal(ev.id, { max_points: Number(e.target.value) })
-                          }
-                          className="w-20 rounded-lg border border-slate-300 px-2 py-1"
-                        />
-                      </label>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {list.length === 0 && (
                 <p className="text-sm text-slate-400">등록된 종목이 없습니다.</p>
               )}
