@@ -34,10 +34,10 @@ function rowFromScore(score: ScoreRow): RowState {
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
 
 // 학년별 체육복 색상
-const GRADE_UNIFORM: Record<number, { name: string; from: string; to: string; text: string }> = {
-  1: { name: "파란색", from: "from-blue-400", to: "to-blue-600", text: "text-blue-50" },
-  2: { name: "보라색", from: "from-purple-400", to: "to-purple-600", text: "text-purple-50" },
-  3: { name: "초록색", from: "from-green-400", to: "to-green-600", text: "text-green-50" },
+const GRADE_UNIFORM: Record<number, { from: string; to: string }> = {
+  1: { from: "from-blue-400", to: "to-blue-600" },
+  2: { from: "from-purple-400", to: "to-purple-600" },
+  3: { from: "from-green-400", to: "to-green-600" },
 };
 
 function ShirtIcon({ className }: { className?: string }) {
@@ -310,9 +310,6 @@ export function InputClient({
                 >
                   <ShirtIcon className="mx-auto h-16 w-16 drop-shadow" />
                   <div className="mt-2 text-xl font-extrabold">{grade}학년</div>
-                  <div className={`text-xs font-medium ${uniform.text}`}>
-                    {uniform.name} 체육복
-                  </div>
                 </button>
               );
             })}
