@@ -43,6 +43,12 @@ const ACTION_LABEL: Record<ScoreAuditLog["action"], string> = {
   admin_edit: "관리자 수정",
 };
 
+const GRADE_STYLE: Record<number, { border: string; header: string; badge: string }> = {
+  1: { border: "border-blue-400", header: "bg-blue-50", badge: "bg-blue-600 text-white" },
+  2: { border: "border-purple-400", header: "bg-purple-50", badge: "bg-purple-600 text-white" },
+  3: { border: "border-green-400", header: "bg-green-50", badge: "bg-green-600 text-white" },
+};
+
 export function AdminScoresClient({
   classes,
   events,
@@ -60,6 +66,9 @@ export function AdminScoresClient({
   const [resetTarget, setResetTarget] = useState<{ classId: string; className: string } | null>(
     null,
   );
+  const [bulkFinalizeOpen, setBulkFinalizeOpen] = useState(false);
+  const [bulkResetOpen, setBulkResetOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const selectedEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? null,
@@ -147,6 +156,83 @@ export function AdminScoresClient({
     setRows((prev) => ({ ...prev, [classId]: emptyRow() }));
   }
 
+  function hasValue(row: RowState): boolean {
+    if (!selectedEvent) return false;
+    if (selectedEvent.scoring_type === "rank") return row.rank != null;
+    if (selectedEvent.scoring_type === "pass_fail") return row.pass != null;
+    if (selectedEvent.scoring_type === "direct") return row.direct != null;
+    return false;
+  }
+
+  const finalizeTargets = useMemo(
+    () => classes.filter((c) => rows[c.id] && rows[c.id].status !== "final" && hasValue(rows[c.id])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [classes, rows, selectedEvent],
+  );
+
+  const resetTargets = useMemo(
+    () => classes.filter((c) => rows[c.id]?.scoreId),
+    [classes, rows],
+  );
+
+  async function finalizeAll() {
+    if (!selectedEvent || finalizeTargets.length === 0) {
+      setBulkFinalizeOpen(false);
+      return;
+    }
+    setBulkSaving(true);
+    const payload = finalizeTargets.map((c) => {
+      const row = rows[c.id];
+      return {
+        id: row.scoreId,
+        event_id: selectedEvent.id,
+        class_id: c.id,
+        rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
+        pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
+        direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+        status: "final" as const,
+      };
+    });
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("scores")
+      .upsert(payload, { onConflict: "event_id,class_id" })
+      .select();
+    setBulkSaving(false);
+    setBulkFinalizeOpen(false);
+    if (error) {
+      alert("전체 최종 확정 실패: " + error.message);
+      return;
+    }
+    setRows((prev) => {
+      const next = { ...prev };
+      for (const s of (data ?? []) as ScoreRow[]) next[s.class_id] = rowFromScore(s);
+      return next;
+    });
+  }
+
+  async function resetAll() {
+    if (resetTargets.length === 0) {
+      setBulkResetOpen(false);
+      return;
+    }
+    setBulkSaving(true);
+    const ids = resetTargets.map((c) => rows[c.id].scoreId as string);
+    const supabase = createClient();
+    const { error } = await supabase.from("scores").delete().in("id", ids);
+    setBulkSaving(false);
+    setBulkResetOpen(false);
+    if (error) {
+      alert("전체 초기화 실패: " + error.message);
+      return;
+    }
+    setRows((prev) => {
+      const next = { ...prev };
+      for (const c of resetTargets) next[c.id] = emptyRow();
+      return next;
+    });
+  }
+
   async function openAudit(classId: string) {
     const row = rows[classId];
     if (!row?.scoreId) return;
@@ -197,14 +283,51 @@ export function AdminScoresClient({
 
       {selectedEvent && (
         <div className="rounded-xl border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="font-bold text-slate-900">{selectedEvent.name}</h2>
+              <p className="text-xs text-slate-500">
+                {CATEGORY_LABEL[selectedEvent.category]} ·{" "}
+                {selectedEvent.scoring_type === "rank" && "순위 입력 (배점표 자동 적용)"}
+                {selectedEvent.scoring_type === "pass_fail" &&
+                  `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
+                {selectedEvent.scoring_type === "direct" &&
+                  `직접 입력 (0~${selectedEvent.max_points}점)`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setBulkResetOpen(true)}
+                disabled={resetTargets.length === 0 || bulkSaving}
+                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+              >
+                🔄 모두 초기화{resetTargets.length > 0 && ` (${resetTargets.length})`}
+              </button>
+              <button
+                onClick={() => setBulkFinalizeOpen(true)}
+                disabled={finalizeTargets.length === 0 || bulkSaving}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
+              >
+                ✅ 모두 최종 확정{finalizeTargets.length > 0 && ` (${finalizeTargets.length})`}
+              </button>
+            </div>
+          </div>
+
           {loading ? (
             <div className="p-8 text-center text-sm text-slate-400">불러오는 중...</div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {[...classesByGrade.keys()].sort().map((grade) => (
-                <div key={grade}>
-                  <div className="bg-slate-50 px-5 py-1.5 text-xs font-semibold text-slate-500">
-                    {grade}학년
+              {[...classesByGrade.keys()].sort().map((grade) => {
+                const style = GRADE_STYLE[grade];
+                return (
+                <div key={grade} className={`border-l-4 ${style.border}`}>
+                  <div className={`flex items-center gap-2 px-5 py-2 ${style.header}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
+                      {grade}학년
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {classesByGrade.get(grade)!.length}개 반
+                    </span>
                   </div>
                   {classesByGrade.get(grade)!.map((c) => {
                     const row = rows[c.id] ?? emptyRow();
@@ -323,7 +446,8 @@ export function AdminScoresClient({
                     );
                   })}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -372,6 +496,27 @@ export function AdminScoresClient({
         onCancel={() => setResetTarget(null)}
         onConfirm={() => resetTarget && resetScore(resetTarget.classId)}
         loading={resetTarget ? rows[resetTarget.classId]?.saving : false}
+      />
+
+      <ConfirmDialog
+        open={bulkFinalizeOpen}
+        title="이 종목의 모든 점수를 최종 확정하시겠습니까?"
+        description={`입력된 ${finalizeTargets.length}개 반의 점수를 한 번에 최종 확정합니다. 결과 화면에 즉시 반영됩니다.`}
+        confirmLabel="모두 최종 확정"
+        onCancel={() => setBulkFinalizeOpen(false)}
+        onConfirm={finalizeAll}
+        loading={bulkSaving}
+      />
+
+      <ConfirmDialog
+        open={bulkResetOpen}
+        title="이 종목의 모든 점수를 초기화하시겠습니까?"
+        description={`입력되어 있는 ${resetTargets.length}개 반의 점수가 전부 삭제되어 미입력 상태로 돌아갑니다. 되돌릴 수 없습니다.`}
+        confirmLabel="모두 초기화"
+        danger
+        onCancel={() => setBulkResetOpen(false)}
+        onConfirm={resetAll}
+        loading={bulkSaving}
       />
     </div>
   );
