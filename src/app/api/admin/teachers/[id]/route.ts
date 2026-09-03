@@ -32,5 +32,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { error } = await admin.auth.admin.updateUserById(id, { password });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  // 관리자가 임시 비밀번호로 재설정했으므로, 다음 로그인 때 본인이 다시 바꾸도록 강제
+  await admin.from("profiles").update({ must_change_password: true }).eq("id", id);
+
   return NextResponse.json({ ok: true });
 }

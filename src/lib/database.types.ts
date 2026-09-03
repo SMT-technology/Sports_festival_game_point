@@ -8,6 +8,7 @@ export interface Profile {
   email: string;
   name: string;
   role: Role;
+  must_change_password: boolean;
   created_at: string;
 }
 

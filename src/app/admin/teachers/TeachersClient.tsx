@@ -43,6 +43,7 @@ export function TeachersClient({
         email: form.email,
         name: form.name,
         role: "teacher",
+        must_change_password: true,
         created_at: new Date().toISOString(),
       },
     ]);
@@ -67,7 +68,7 @@ export function TeachersClient({
   }
 
   async function resetPassword(p: Profile) {
-    const password = prompt(`${p.name} 님의 새 비밀번호를 입력하세요 (6자 이상)`);
+    const password = prompt(`${p.name} 님에게 발급할 임시 비밀번호를 입력하세요 (6자 이상)`);
     if (!password) return;
     const res = await fetch(`/api/admin/teachers/${p.id}`, {
       method: "PATCH",
@@ -76,7 +77,7 @@ export function TeachersClient({
     });
     const body = await res.json();
     if (!res.ok) alert("변경 실패: " + body.error);
-    else alert("비밀번호가 변경되었습니다.");
+    else alert("임시 비밀번호로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.");
   }
 
   async function deleteTeacher() {
@@ -98,7 +99,9 @@ export function TeachersClient({
       <div>
         <h1 className="text-lg font-bold text-slate-900">👩‍🏫 교사 계정 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          계정을 만들면 별도 배정 없이 모든 학년·종목에 바로 점수를 입력할 수 있어요.
+          계정을 만들면 별도 배정 없이 모든 학년·종목에 바로 점수를 입력할 수 있어요. 여기서
+          정한 비밀번호는 임시 비밀번호이며, 교사가 최초 로그인하면 본인이 직접 새 비밀번호로
+          바꿔야 합니다. 관리자는 그 이후 비밀번호를 볼 수 없고, 필요시 재설정만 할 수 있어요.
         </p>
       </div>
 
@@ -123,7 +126,7 @@ export function TeachersClient({
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500">초기 비밀번호</label>
+            <label className="block text-xs text-slate-500">임시 비밀번호</label>
             <input
               type="text"
               value={form.password}
@@ -187,7 +190,7 @@ export function TeachersClient({
                           onClick={() => resetPassword(p)}
                           className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
                         >
-                          비밀번호 재설정
+                          🔄 비밀번호 초기화
                         </button>
                         <button
                           onClick={() => setDeleteTarget(p)}

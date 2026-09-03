@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABEL, classLabel, previewPoints } from "@/lib/scoring";
 import type { ClassRow, EventCategory, EventRow, Profile, ScoreRow } from "@/lib/database.types";
@@ -38,6 +39,17 @@ const GRADE_COLOR: Record<number, string> = {
   3: "from-orange-500 to-amber-600",
 };
 
+function BackButton({ onClick, label = "← 뒤로" }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
+    >
+      {label}
+    </button>
+  );
+}
+
 type Step = "grade" | "event" | "score";
 
 export function InputClient({
@@ -49,13 +61,16 @@ export function InputClient({
   events: EventRow[];
   classes: ClassRow[];
 }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("grade");
   const [selectedGrade, setSelectedGrade] = useState<1 | 2 | 3 | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadedEventId, setLoadedEventId] = useState<string | null>(null);
   const loading = selectedEventId !== null && loadedEventId !== selectedEventId;
-  const [confirmTarget, setConfirmTarget] = useState<{ classId: string } | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const availableGrades = useMemo(
     () => [...new Set(classes.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
@@ -140,20 +155,42 @@ export function InputClient({
     setStep("score");
   }
 
+  function validateRow(row: RowState): string | null {
+    if (!selectedEvent) return null;
+    if (selectedEvent.scoring_type === "direct") {
+      const v = row.direct;
+      if (v != null && (v < 0 || v > selectedEvent.max_points)) {
+        return `0~${selectedEvent.max_points}점 범위로 입력하세요.`;
+      }
+    }
+    if (selectedEvent.scoring_type === "rank" && row.rank != null && row.rank < 1) {
+      return "1 이상의 순위를 입력하세요.";
+    }
+    return null;
+  }
+
+  function hasValue(row: RowState): boolean {
+    if (!selectedEvent) return false;
+    if (selectedEvent.scoring_type === "rank") return row.rank != null;
+    if (selectedEvent.scoring_type === "pass_fail") return row.pass != null;
+    if (selectedEvent.scoring_type === "direct") return row.direct != null;
+    return false;
+  }
+
+  const readyToFinalize = useMemo(
+    () => gradeClasses.filter((c) => rows[c.id] && rows[c.id].status !== "final" && hasValue(rows[c.id])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gradeClasses, rows, selectedEvent],
+  );
+
   async function saveDraft(classId: string) {
     if (!selectedEvent) return;
     const row = rows[classId];
     if (!row) return;
 
-    if (selectedEvent.scoring_type === "direct") {
-      const v = row.direct;
-      if (v != null && (v < 0 || v > selectedEvent.max_points)) {
-        updateRow(classId, { error: `0~${selectedEvent.max_points}점 범위로 입력하세요.` });
-        return;
-      }
-    }
-    if (selectedEvent.scoring_type === "rank" && row.rank != null && row.rank < 1) {
-      updateRow(classId, { error: "1 이상의 순위를 입력하세요." });
+    const err = validateRow(row);
+    if (err) {
+      updateRow(classId, { error: err });
       return;
     }
 
@@ -183,42 +220,61 @@ export function InputClient({
     setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
   }
 
-  async function confirmFinal(classId: string) {
+  async function finalizeAll() {
     if (!selectedEvent) return;
-    const row = rows[classId];
-    if (!row) return;
+    setBulkError(null);
 
-    updateRow(classId, { saving: true });
+    for (const c of readyToFinalize) {
+      const err = validateRow(rows[c.id]);
+      if (err) {
+        setBulkError(`${classLabel(c)}: ${err}`);
+        return;
+      }
+    }
+
+    if (readyToFinalize.length === 0) {
+      setBulkError("입력된 점수가 없습니다. 먼저 반별 점수를 입력해주세요.");
+      return;
+    }
+
+    setBulkSaving(true);
+    const payload = readyToFinalize.map((c) => {
+      const row = rows[c.id];
+      return {
+        id: row.scoreId,
+        event_id: selectedEvent.id,
+        class_id: c.id,
+        rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
+        pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
+        direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+        status: "final" as const,
+      };
+    });
+
     const supabase = createClient();
     const { data, error } = await supabase
       .from("scores")
-      .upsert(
-        {
-          id: row.scoreId,
-          event_id: selectedEvent.id,
-          class_id: classId,
-          rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
-          pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
-          direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
-          status: "final",
-        },
-        { onConflict: "event_id,class_id" },
-      )
-      .select()
-      .single();
+      .upsert(payload, { onConflict: "event_id,class_id" })
+      .select();
 
-    setConfirmTarget(null);
+    setBulkSaving(false);
+    setBulkConfirmOpen(false);
+
     if (error) {
-      updateRow(classId, { saving: false, error: "제출 실패: " + error.message });
+      setBulkError("전체 최종 제출 실패: " + error.message);
       return;
     }
-    setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
+    setRows((prev) => {
+      const next = { ...prev };
+      for (const s of (data ?? []) as ScoreRow[]) next[s.class_id] = rowFromScore(s);
+      return next;
+    });
   }
 
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-        아직 배정된 종목이 없습니다. 관리자(체육부장) 선생님께 종목 배정을 요청하세요.
+        아직 등록된 종목이 없습니다. 관리자(체육부장) 선생님께 문의하세요.
       </div>
     );
   }
@@ -228,6 +284,7 @@ export function InputClient({
       {/* ---------------- STEP 1: 학년 선택 ---------------- */}
       {step === "grade" && (
         <div className="space-y-6">
+          <BackButton onClick={() => router.push("/results")} label="← 결과 화면으로" />
           <div className="text-center">
             <p className="text-3xl">🏟️</p>
             <h1 className="mt-2 text-lg font-bold text-slate-900">어느 학년 점수를 입력할까요?</h1>
@@ -251,12 +308,7 @@ export function InputClient({
       {/* ---------------- STEP 2: 종목 선택 ---------------- */}
       {step === "event" && selectedGrade && (
         <div className="space-y-5">
-          <button
-            onClick={() => setStep("grade")}
-            className="text-sm font-medium text-slate-500 hover:text-blue-700"
-          >
-            ‹ 학년 다시 선택
-          </button>
+          <BackButton onClick={() => setStep("grade")} label="← 뒤로 (학년 다시 선택)" />
           <div className="text-center">
             <p className="text-3xl">🏅</p>
             <h1 className="mt-2 text-lg font-bold text-slate-900">
@@ -296,24 +348,18 @@ export function InputClient({
       {/* ---------------- STEP 3: 점수 입력 ---------------- */}
       {step === "score" && selectedGrade && selectedEvent && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <BackButton onClick={() => setStep("event")} label="← 뒤로 (종목 다시 선택)" />
             <button
               onClick={() => setStep("grade")}
-              className="font-medium text-slate-500 hover:text-blue-700"
+              className="text-xs font-medium text-slate-400 underline decoration-dotted underline-offset-2 hover:text-blue-700"
             >
-              ‹ 학년 변경
-            </button>
-            <span className="text-slate-300">|</span>
-            <button
-              onClick={() => setStep("event")}
-              className="font-medium text-slate-500 hover:text-blue-700"
-            >
-              ‹ 종목 변경
+              학년부터 다시 선택
             </button>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="font-bold text-slate-900">
                   {selectedGrade}학년 · {selectedEvent.name}
@@ -327,12 +373,28 @@ export function InputClient({
                     `직접 입력 (0~${selectedEvent.max_points}점)`}
                 </p>
               </div>
-              {selectedEvent.is_locked && (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                  관리자에 의해 잠김 — 수정 불가
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedEvent.is_locked && (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                    관리자에 의해 잠김 — 수정 불가
+                  </span>
+                )}
+                {!selectedEvent.is_locked && (
+                  <button
+                    onClick={() => setBulkConfirmOpen(true)}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                  >
+                    ✅ 전체 최종 제출{readyToFinalize.length > 0 && ` (${readyToFinalize.length}개 반)`}
+                  </button>
+                )}
+              </div>
             </div>
+
+            {bulkError && (
+              <p className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-600">
+                {bulkError}
+              </p>
+            )}
 
             {loading ? (
               <div className="p-8 text-center text-sm text-slate-400">불러오는 중...</div>
@@ -437,13 +499,6 @@ export function InputClient({
                             >
                               임시저장
                             </button>
-                            <button
-                              disabled={disabled}
-                              onClick={() => setConfirmTarget({ classId: c.id })}
-                              className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
-                            >
-                              최종 제출
-                            </button>
                           </>
                         )}
                       </div>
@@ -457,13 +512,13 @@ export function InputClient({
       )}
 
       <ConfirmDialog
-        open={!!confirmTarget}
+        open={bulkConfirmOpen}
         title="최종으로 입력을 하시겠습니까?"
-        description="최종 제출하면 결과 화면에 즉시 반영됩니다. 제출 후에는 본인이 다시 수정할 수 없고, 잘못 입력했다면 관리자에게 요청해야 합니다."
-        confirmLabel="최종 제출"
-        onCancel={() => setConfirmTarget(null)}
-        onConfirm={() => confirmTarget && confirmFinal(confirmTarget.classId)}
-        loading={confirmTarget ? rows[confirmTarget.classId]?.saving : false}
+        description={`입력된 ${readyToFinalize.length}개 반의 점수를 한 번에 최종 제출합니다. 최종 제출하면 결과 화면에 즉시 반영되고, 제출 후에는 본인이 다시 수정할 수 없습니다(잘못 입력했다면 관리자에게 요청).`}
+        confirmLabel="전체 최종 제출"
+        onCancel={() => setBulkConfirmOpen(false)}
+        onConfirm={finalizeAll}
+        loading={bulkSaving}
       />
 
       <p className="text-xs text-slate-400">로그인: {profile.email}</p>

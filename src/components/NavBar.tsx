@@ -73,6 +73,12 @@ export function NavBar({
             </Link>
           )}
           <span className="text-sm text-slate-500">{name}</span>
+          <Link
+            href="/change-password"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            🔑 비밀번호 변경
+          </Link>
           <button
             onClick={handleSignOut}
             className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
