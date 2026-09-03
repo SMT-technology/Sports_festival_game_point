@@ -143,7 +143,7 @@ export function ResultsClient({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">실시간 결과</h1>
+          <h1 className="text-lg font-bold text-slate-900">🏆 실시간 결과</h1>
           <p className="mt-1 text-xs text-slate-500">
             최종 제출된 점수만 집계됩니다 · {lastUpdate.toLocaleTimeString("ko-KR")} 기준 갱신
           </p>

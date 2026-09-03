@@ -31,6 +31,14 @@ function rowFromScore(score: ScoreRow): RowState {
 }
 
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
+const GRADE_EMOJI: Record<number, string> = { 1: "1️⃣", 2: "2️⃣", 3: "3️⃣" };
+const GRADE_COLOR: Record<number, string> = {
+  1: "from-sky-500 to-blue-600",
+  2: "from-emerald-500 to-teal-600",
+  3: "from-orange-500 to-amber-600",
+};
+
+type Step = "grade" | "event" | "score";
 
 export function InputClient({
   profile,
@@ -41,13 +49,20 @@ export function InputClient({
   events: EventRow[];
   classes: ClassRow[];
 }) {
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(events[0]?.id ?? null);
+  const [step, setStep] = useState<Step>("grade");
+  const [selectedGrade, setSelectedGrade] = useState<1 | 2 | 3 | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadedEventId, setLoadedEventId] = useState<string | null>(null);
   const loading = selectedEventId !== null && loadedEventId !== selectedEventId;
   const [confirmTarget, setConfirmTarget] = useState<
     { classId: string; type: "final" | "unlock" } | null
   >(null);
+
+  const availableGrades = useMemo(
+    () => [...new Set(classes.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
+    [classes],
+  );
 
   const selectedEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? null,
@@ -61,14 +76,13 @@ export function InputClient({
     return map;
   }, [events]);
 
-  const classesByGrade = useMemo(() => {
-    const map = new Map<number, ClassRow[]>();
-    for (const c of classes) {
-      if (!map.has(c.grade)) map.set(c.grade, []);
-      map.get(c.grade)!.push(c);
-    }
-    return map;
-  }, [classes]);
+  const gradeClasses = useMemo(
+    () =>
+      selectedGrade
+        ? classes.filter((c) => c.grade === selectedGrade).sort((a, b) => a.class_no - b.class_no)
+        : [],
+    [classes, selectedGrade],
+  );
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -116,6 +130,16 @@ export function InputClient({
 
   function updateRow(classId: string, patch: Partial<RowState>) {
     setRows((prev) => ({ ...prev, [classId]: { ...prev[classId], ...patch, error: undefined } }));
+  }
+
+  function pickGrade(grade: 1 | 2 | 3) {
+    setSelectedGrade(grade);
+    setStep("event");
+  }
+
+  function pickEvent(eventId: string) {
+    setSelectedEventId(eventId);
+    setStep("score");
   }
 
   async function saveDraft(classId: string) {
@@ -226,197 +250,239 @@ export function InputClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-bold text-slate-900">점수 입력</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          담당 종목을 선택하고 반별 결과를 입력하세요. 저장 후 &ldquo;최종 제출&rdquo;을 눌러야
-          결과 화면에 반영됩니다.
-        </p>
-      </div>
+      {/* ---------------- STEP 1: 학년 선택 ---------------- */}
+      {step === "grade" && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <p className="text-3xl">🏟️</p>
+            <h1 className="mt-2 text-lg font-bold text-slate-900">어느 학년 점수를 입력할까요?</h1>
+            <p className="mt-1 text-sm text-slate-500">학년을 먼저 선택해주세요.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {availableGrades.map((grade) => (
+              <button
+                key={grade}
+                onClick={() => pickGrade(grade)}
+                className={`rounded-2xl bg-gradient-to-br ${GRADE_COLOR[grade]} p-8 text-center text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}
+              >
+                <div className="text-4xl">{GRADE_EMOJI[grade]}</div>
+                <div className="mt-2 text-xl font-extrabold">{grade}학년</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-      <div className="space-y-3">
-        {CATEGORY_ORDER.map((cat) => {
-          const list = grouped.get(cat) ?? [];
-          if (list.length === 0) return null;
-          return (
-            <div key={cat}>
-              <p className="mb-1.5 text-xs font-semibold text-slate-400">{CATEGORY_LABEL[cat]}</p>
-              <div className="flex flex-wrap gap-2">
-                {list.map((ev) => (
-                  <button
-                    key={ev.id}
-                    onClick={() => setSelectedEventId(ev.id)}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                      ev.id === selectedEventId
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"
-                    }`}
-                  >
-                    {ev.name}
-                    {ev.is_locked && " 🔒"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {selectedEvent && (
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div>
-              <h2 className="font-bold text-slate-900">{selectedEvent.name}</h2>
-              <p className="text-xs text-slate-500">
-                {CATEGORY_LABEL[selectedEvent.category]} ·{" "}
-                {selectedEvent.scoring_type === "rank" && "순위 입력 (배점표 자동 적용)"}
-                {selectedEvent.scoring_type === "pass_fail" &&
-                  `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
-                {selectedEvent.scoring_type === "direct" &&
-                  `직접 입력 (0~${selectedEvent.max_points}점)`}
-              </p>
-            </div>
-            {selectedEvent.is_locked && (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                관리자에 의해 잠김 — 수정 불가
-              </span>
-            )}
+      {/* ---------------- STEP 2: 종목 선택 ---------------- */}
+      {step === "event" && selectedGrade && (
+        <div className="space-y-5">
+          <button
+            onClick={() => setStep("grade")}
+            className="text-sm font-medium text-slate-500 hover:text-blue-700"
+          >
+            ‹ 학년 다시 선택
+          </button>
+          <div className="text-center">
+            <p className="text-3xl">🏅</p>
+            <h1 className="mt-2 text-lg font-bold text-slate-900">
+              {selectedGrade}학년 · 어느 종목인가요?
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">담당 종목을 선택해주세요.</p>
           </div>
 
-          {loading ? (
-            <div className="p-8 text-center text-sm text-slate-400">불러오는 중...</div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {[...classesByGrade.keys()].sort().map((grade) => (
-                <div key={grade}>
-                  <div className="bg-slate-50 px-5 py-1.5 text-xs font-semibold text-slate-500">
-                    {grade}학년
-                  </div>
-                  {classesByGrade.get(grade)!.map((c) => {
-                    const row = rows[c.id] ?? emptyRow();
-                    const disabled =
-                      row.status === "final" || selectedEvent.is_locked || row.saving;
-                    return (
-                      <div
-                        key={c.id}
-                        className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm"
+          <div className="space-y-4">
+            {CATEGORY_ORDER.map((cat) => {
+              const list = grouped.get(cat) ?? [];
+              if (list.length === 0) return null;
+              return (
+                <div key={cat}>
+                  <p className="mb-1.5 text-xs font-semibold text-slate-400">
+                    {CATEGORY_LABEL[cat]}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {list.map((ev) => (
+                      <button
+                        key={ev.id}
+                        onClick={() => pickEvent(ev.id)}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-400 hover:text-blue-700 hover:shadow"
                       >
-                        <span className="w-20 shrink-0 font-medium text-slate-700">
-                          {classLabel(c)}
-                        </span>
-
-                        <div className="flex flex-1 items-center gap-2">
-                          {selectedEvent.scoring_type === "rank" && (
-                            <input
-                              type="number"
-                              min={1}
-                              placeholder="순위"
-                              disabled={disabled}
-                              value={row.rank ?? ""}
-                              onChange={(e) =>
-                                updateRow(c.id, {
-                                  rank: e.target.value === "" ? null : Number(e.target.value),
-                                })
-                              }
-                              className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
-                            />
-                          )}
-
-                          {selectedEvent.scoring_type === "pass_fail" && (
-                            <div className="flex gap-1.5">
-                              <button
-                                disabled={disabled}
-                                onClick={() => updateRow(c.id, { pass: true })}
-                                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
-                                  row.pass === true
-                                    ? "border-green-600 bg-green-50 text-green-700"
-                                    : "border-slate-200 text-slate-500"
-                                }`}
-                              >
-                                통과
-                              </button>
-                              <button
-                                disabled={disabled}
-                                onClick={() => updateRow(c.id, { pass: false })}
-                                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
-                                  row.pass === false
-                                    ? "border-red-600 bg-red-50 text-red-700"
-                                    : "border-slate-200 text-slate-500"
-                                }`}
-                              >
-                                실패
-                              </button>
-                            </div>
-                          )}
-
-                          {selectedEvent.scoring_type === "direct" && (
-                            <input
-                              type="number"
-                              min={0}
-                              max={selectedEvent.max_points}
-                              placeholder={`0~${selectedEvent.max_points}`}
-                              disabled={disabled}
-                              value={row.direct ?? ""}
-                              onChange={(e) =>
-                                updateRow(c.id, {
-                                  direct: e.target.value === "" ? null : Number(e.target.value),
-                                })
-                              }
-                              className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
-                            />
-                          )}
-
-                          <span className="text-xs text-slate-400">
-                            {previewPoints(selectedEvent, row).toFixed(0)}점
-                          </span>
-                        </div>
-
-                        {row.error && <span className="text-xs text-red-600">{row.error}</span>}
-
-                        <div className="flex shrink-0 items-center gap-2">
-                          {row.status === "final" ? (
-                            <>
-                              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                최종 제출 완료
-                              </span>
-                              {!selectedEvent.is_locked && (
-                                <button
-                                  onClick={() => setConfirmTarget({ classId: c.id, type: "unlock" })}
-                                  className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                                >
-                                  수정하기
-                                </button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {row.status === "draft" && (
-                                <span className="text-xs text-amber-600">임시저장됨</span>
-                              )}
-                              <button
-                                disabled={disabled}
-                                onClick={() => saveDraft(c.id)}
-                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                              >
-                                임시저장
-                              </button>
-                              <button
-                                disabled={disabled}
-                                onClick={() => setConfirmTarget({ classId: c.id, type: "final" })}
-                                className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
-                              >
-                                최종 제출
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        {ev.name}
+                        {ev.is_locked && " 🔒"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- STEP 3: 점수 입력 ---------------- */}
+      {step === "score" && selectedGrade && selectedEvent && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <button
+              onClick={() => setStep("grade")}
+              className="font-medium text-slate-500 hover:text-blue-700"
+            >
+              ‹ 학년 변경
+            </button>
+            <span className="text-slate-300">|</span>
+            <button
+              onClick={() => setStep("event")}
+              className="font-medium text-slate-500 hover:text-blue-700"
+            >
+              ‹ 종목 변경
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="font-bold text-slate-900">
+                  {selectedGrade}학년 · {selectedEvent.name}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {CATEGORY_LABEL[selectedEvent.category]} ·{" "}
+                  {selectedEvent.scoring_type === "rank" && "순위 입력 (배점표 자동 적용)"}
+                  {selectedEvent.scoring_type === "pass_fail" &&
+                    `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
+                  {selectedEvent.scoring_type === "direct" &&
+                    `직접 입력 (0~${selectedEvent.max_points}점)`}
+                </p>
+              </div>
+              {selectedEvent.is_locked && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                  관리자에 의해 잠김 — 수정 불가
+                </span>
+              )}
             </div>
-          )}
+
+            {loading ? (
+              <div className="p-8 text-center text-sm text-slate-400">불러오는 중...</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {gradeClasses.map((c) => {
+                  const row = rows[c.id] ?? emptyRow();
+                  const disabled = row.status === "final" || selectedEvent.is_locked || row.saving;
+                  return (
+                    <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm">
+                      <span className="w-20 shrink-0 font-medium text-slate-700">
+                        {classLabel(c)}
+                      </span>
+
+                      <div className="flex flex-1 items-center gap-2">
+                        {selectedEvent.scoring_type === "rank" && (
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="순위"
+                            disabled={disabled}
+                            value={row.rank ?? ""}
+                            onChange={(e) =>
+                              updateRow(c.id, {
+                                rank: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                          />
+                        )}
+
+                        {selectedEvent.scoring_type === "pass_fail" && (
+                          <div className="flex gap-1.5">
+                            <button
+                              disabled={disabled}
+                              onClick={() => updateRow(c.id, { pass: true })}
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+                                row.pass === true
+                                  ? "border-green-600 bg-green-50 text-green-700"
+                                  : "border-slate-200 text-slate-500"
+                              }`}
+                            >
+                              통과
+                            </button>
+                            <button
+                              disabled={disabled}
+                              onClick={() => updateRow(c.id, { pass: false })}
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+                                row.pass === false
+                                  ? "border-red-600 bg-red-50 text-red-700"
+                                  : "border-slate-200 text-slate-500"
+                              }`}
+                            >
+                              실패
+                            </button>
+                          </div>
+                        )}
+
+                        {selectedEvent.scoring_type === "direct" && (
+                          <input
+                            type="number"
+                            min={0}
+                            max={selectedEvent.max_points}
+                            placeholder={`0~${selectedEvent.max_points}`}
+                            disabled={disabled}
+                            value={row.direct ?? ""}
+                            onChange={(e) =>
+                              updateRow(c.id, {
+                                direct: e.target.value === "" ? null : Number(e.target.value),
+                              })
+                            }
+                            className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                          />
+                        )}
+
+                        <span className="text-xs text-slate-400">
+                          {previewPoints(selectedEvent, row).toFixed(0)}점
+                        </span>
+                      </div>
+
+                      {row.error && <span className="text-xs text-red-600">{row.error}</span>}
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {row.status === "final" ? (
+                          <>
+                            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                              최종 제출 완료
+                            </span>
+                            {!selectedEvent.is_locked && (
+                              <button
+                                onClick={() => setConfirmTarget({ classId: c.id, type: "unlock" })}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                              >
+                                수정하기
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {row.status === "draft" && (
+                              <span className="text-xs text-amber-600">임시저장됨</span>
+                            )}
+                            <button
+                              disabled={disabled}
+                              onClick={() => saveDraft(c.id)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                            >
+                              임시저장
+                            </button>
+                            <button
+                              disabled={disabled}
+                              onClick={() => setConfirmTarget({ classId: c.id, type: "final" })}
+                              className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
+                            >
+                              최종 제출
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

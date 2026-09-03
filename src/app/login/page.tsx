@@ -31,6 +31,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [role, setRole] = useState<"teacher" | "admin">("teacher");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,18 +52,57 @@ function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next") || "/input";
+    const fallback = role === "admin" ? "/admin" : "/input";
+    const next = searchParams.get("next") || fallback;
     router.replace(next);
     router.refresh();
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-bold text-slate-900">체육대회 점수 관리</h1>
-        <p className="mt-1 text-sm text-slate-500">교사 계정으로 로그인하세요.</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-orange-500 px-4 py-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 select-none text-6xl opacity-20"
+      >
+        <span className="absolute left-[6%] top-[10%]">🏃</span>
+        <span className="absolute left-[80%] top-[8%]">🏆</span>
+        <span className="absolute left-[12%] top-[70%]">🎉</span>
+        <span className="absolute left-[85%] top-[65%]">⚽</span>
+        <span className="absolute left-[45%] top-[85%]">🥇</span>
+        <span className="absolute left-[50%] top-[5%]">📣</span>
+      </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <div className="relative w-full max-w-sm rounded-3xl bg-white/95 p-8 shadow-2xl backdrop-blur">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-orange-400 text-3xl shadow-md">
+            🏅
+          </div>
+          <h1 className="mt-3 text-xl font-extrabold text-slate-900">체육대회 점수 관리</h1>
+          <p className="mt-1 text-sm text-slate-500">신도중학교 체육대회 🎊</p>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setRole("teacher")}
+            className={`rounded-lg py-2 text-sm font-semibold transition ${
+              role === "teacher" ? "bg-white text-blue-700 shadow" : "text-slate-500"
+            }`}
+          >
+            🙋 교사로 로그인
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole("admin")}
+            className={`rounded-lg py-2 text-sm font-semibold transition ${
+              role === "admin" ? "bg-white text-orange-600 shadow" : "text-slate-500"
+            }`}
+          >
+            🛠️ 관리자로 로그인
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700" htmlFor="email">
               이메일
@@ -97,9 +137,13 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+            className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
+              role === "admin"
+                ? "bg-orange-500 hover:bg-orange-600"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
-            {loading ? "로그인 중..." : "로그인"}
+            {loading ? "로그인 중..." : role === "admin" ? "관리자로 로그인" : "교사로 로그인"}
           </button>
         </form>
 
