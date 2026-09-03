@@ -54,7 +54,7 @@ create table public.classes (
 -- ----------------------------------------------------------------------------
 create table public.events (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
+  name text not null unique,
   category text not null check (category in ('relay', 'minigame', 'cheer')),
   scoring_type text not null check (scoring_type in ('rank', 'pass_fail', 'direct')),
   point_table jsonb not null default '{"1":100,"2":80,"3":60,"4":40,"5":20}'::jsonb,

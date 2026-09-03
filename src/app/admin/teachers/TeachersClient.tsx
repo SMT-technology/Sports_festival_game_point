@@ -9,10 +9,12 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
 
 export function TeachersClient({
+  currentUserId,
   initialProfiles,
   events,
   initialAssignments,
 }: {
+  currentUserId: string;
   initialProfiles: Profile[];
   events: EventRow[];
   initialAssignments: EventAssignment[];
@@ -221,24 +223,32 @@ export function TeachersClient({
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => toggleRole(p)}
-                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                        >
-                          {p.role === "admin" ? "교사로 변경" : "관리자로 승격"}
-                        </button>
-                        <button
-                          onClick={() => resetPassword(p)}
-                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                        >
-                          비밀번호 재설정
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(p)}
-                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
-                        >
-                          삭제
-                        </button>
+                        {p.id === currentUserId ? (
+                          <span className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1 text-xs text-slate-400">
+                            본인 계정 (여기서 변경 불가)
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => toggleRole(p)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                              {p.role === "admin" ? "교사로 변경" : "관리자로 승격"}
+                            </button>
+                            <button
+                              onClick={() => resetPassword(p)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                              비밀번호 재설정
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(p)}
+                              className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              삭제
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
