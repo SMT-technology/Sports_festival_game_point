@@ -274,7 +274,7 @@ export function InputClient({
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-        아직 등록된 종목이 없습니다. 관리자(체육부장) 선생님께 문의하세요.
+        아직 등록된 종목이 없습니다. 관리자(서민택 선생님)께 문의하세요.
       </div>
     );
   }

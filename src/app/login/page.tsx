@@ -144,12 +144,25 @@ function LoginForm() {
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {loading ? "로그인 중..." : role === "admin" ? "관리자로 로그인" : "교사로 로그인"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-block animate-spin">🔄</span> 로그인 중...
+              </span>
+            ) : role === "admin" ? (
+              "관리자로 로그인"
+            ) : (
+              "교사로 로그인"
+            )}
           </button>
+          {loading && (
+            <p className="text-center text-xs text-slate-400">
+              서버에 접속하고 있어요. 잠시만 기다려주세요...
+            </p>
+          )}
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          계정이 없으신가요? 관리자(체육부장) 선생님께 계정 생성을 요청하세요.
+          계정이 없으신가요? 관리자(서민택 선생님)께 계정 생성을 요청하세요.
         </p>
       </div>
     </div>
