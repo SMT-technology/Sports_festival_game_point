@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -31,8 +32,15 @@ export function NavBar({
       <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-            <span aria-hidden>🏅</span> 체육대회 점수 관리
+          <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+            <Image
+              src="/logo.jpg"
+              alt="신도중학교 로고"
+              width={24}
+              height={24}
+              className="rounded-full"
+            />
+            체육대회 점수 관리
           </span>
           <nav className="flex gap-1">
             {LINKS.map((link) => {

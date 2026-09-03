@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,8 +75,8 @@ function LoginForm() {
 
       <div className="relative w-full max-w-sm rounded-3xl bg-white/95 p-8 shadow-2xl backdrop-blur">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-orange-400 text-3xl shadow-md">
-            🏅
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full shadow-md ring-4 ring-blue-100">
+            <Image src="/logo.jpg" alt="신도중학교 로고" width={80} height={80} priority />
           </div>
           <h1 className="mt-3 text-xl font-extrabold text-slate-900">체육대회 점수 관리</h1>
           <p className="mt-1 text-sm text-slate-500">신도중학교 체육대회 🎊</p>
