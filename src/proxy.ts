@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
 
   if (user && path === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/results";
+    url.pathname = "/input";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
 
     if (profile?.role !== "admin") {
       const url = request.nextUrl.clone();
-      url.pathname = "/results";
+      url.pathname = "/input";
       url.search = "";
       return NextResponse.redirect(url);
     }

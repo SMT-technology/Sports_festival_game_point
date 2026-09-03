@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
-  { href: "/results", label: "결과" },
   { href: "/input", label: "입력" },
+  { href: "/results", label: "결과" },
 ];
 
 export function NavBar({

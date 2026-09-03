@@ -51,7 +51,7 @@ function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next") || "/results";
+    const next = searchParams.get("next") || "/input";
     router.replace(next);
     router.refresh();
   }
