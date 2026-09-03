@@ -34,16 +34,47 @@ function rowFromScore(score: ScoreRow): RowState {
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
 
 // 학년별 체육복 색상
-const GRADE_UNIFORM: Record<number, { from: string; to: string }> = {
-  1: { from: "from-blue-400", to: "to-blue-600" },
-  2: { from: "from-purple-400", to: "to-purple-600" },
-  3: { from: "from-green-400", to: "to-green-600" },
+const GRADE_UNIFORM: Record<number, string> = {
+  1: "fill-blue-600",
+  2: "fill-purple-600",
+  3: "fill-green-600",
 };
 
-function ShirtIcon({ className }: { className?: string }) {
+function ShirtGraphic({ fillClass, label }: { fillClass: string; label: string }) {
   return (
-    <svg viewBox="0 0 64 64" fill="currentColor" className={className} aria-hidden>
-      <path d="M18 10 L6 20 L15 28 L18 25 L18 58 L46 58 L46 25 L49 28 L58 20 L46 10 L38 15 L26 15 Z" />
+    <svg viewBox="0 0 100 100" className="mx-auto h-28 w-28 drop-shadow-md" aria-hidden>
+      {/* 체육복 몸통 + 소매 */}
+      <path
+        d="M30,15 C38,24 62,24 70,15 L92,28 L78,40 L78,88 L22,88 L22,40 L8,28 Z"
+        className={fillClass}
+      />
+      {/* 깃 (카라) 라인 */}
+      <path
+        d="M33,17 C40,24 60,24 67,17"
+        fill="none"
+        stroke="white"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      {/* 소매 밑단 */}
+      <line x1="92" y1="28" x2="78" y2="40" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" />
+      <line x1="8" y1="28" x2="22" y2="40" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" />
+      {/* 옆선 */}
+      <line x1="78" y1="40" x2="78" y2="88" stroke="black" strokeOpacity="0.15" strokeWidth="1.5" />
+      <line x1="22" y1="40" x2="22" y2="88" stroke="black" strokeOpacity="0.15" strokeWidth="1.5" />
+      {/* 등번호 */}
+      <text
+        x="50"
+        y="70"
+        textAnchor="middle"
+        fontSize="34"
+        fontWeight="800"
+        fill="white"
+        opacity="0.95"
+      >
+        {label}
+      </text>
     </svg>
   );
 }
@@ -300,19 +331,16 @@ export function InputClient({
             <p className="mt-1 text-sm text-slate-500">학년을 먼저 선택해주세요.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {availableGrades.map((grade) => {
-              const uniform = GRADE_UNIFORM[grade];
-              return (
-                <button
-                  key={grade}
-                  onClick={() => pickGrade(grade)}
-                  className={`rounded-2xl bg-gradient-to-b ${uniform.from} ${uniform.to} p-8 text-center text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}
-                >
-                  <ShirtIcon className="mx-auto h-16 w-16 drop-shadow" />
-                  <div className="mt-2 text-xl font-extrabold">{grade}학년</div>
-                </button>
-              );
-            })}
+            {availableGrades.map((grade) => (
+              <button
+                key={grade}
+                onClick={() => pickGrade(grade)}
+                className="rounded-2xl border-2 border-slate-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
+              >
+                <ShirtGraphic fillClass={GRADE_UNIFORM[grade]} label={String(grade)} />
+                <div className="mt-3 text-xl font-extrabold text-slate-800">{grade}학년</div>
+              </button>
+            ))}
           </div>
         </div>
       )}
