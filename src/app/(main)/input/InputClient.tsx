@@ -32,12 +32,21 @@ function rowFromScore(score: ScoreRow): RowState {
 }
 
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
-const GRADE_EMOJI: Record<number, string> = { 1: "1️⃣", 2: "2️⃣", 3: "3️⃣" };
-const GRADE_COLOR: Record<number, string> = {
-  1: "from-sky-500 to-blue-600",
-  2: "from-emerald-500 to-teal-600",
-  3: "from-orange-500 to-amber-600",
+
+// 학년별 체육복 색상
+const GRADE_UNIFORM: Record<number, { name: string; from: string; to: string; text: string }> = {
+  1: { name: "파란색", from: "from-blue-400", to: "to-blue-600", text: "text-blue-50" },
+  2: { name: "보라색", from: "from-purple-400", to: "to-purple-600", text: "text-purple-50" },
+  3: { name: "초록색", from: "from-green-400", to: "to-green-600", text: "text-green-50" },
 };
+
+function ShirtIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="currentColor" className={className} aria-hidden>
+      <path d="M18 10 L6 20 L15 28 L18 25 L18 58 L46 58 L46 25 L49 28 L58 20 L46 10 L38 15 L26 15 Z" />
+    </svg>
+  );
+}
 
 function BackButton({ onClick, label = "← 뒤로" }: { onClick: () => void; label?: string }) {
   return (
@@ -291,16 +300,22 @@ export function InputClient({
             <p className="mt-1 text-sm text-slate-500">학년을 먼저 선택해주세요.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {availableGrades.map((grade) => (
-              <button
-                key={grade}
-                onClick={() => pickGrade(grade)}
-                className={`rounded-2xl bg-gradient-to-br ${GRADE_COLOR[grade]} p-8 text-center text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}
-              >
-                <div className="text-4xl">{GRADE_EMOJI[grade]}</div>
-                <div className="mt-2 text-xl font-extrabold">{grade}학년</div>
-              </button>
-            ))}
+            {availableGrades.map((grade) => {
+              const uniform = GRADE_UNIFORM[grade];
+              return (
+                <button
+                  key={grade}
+                  onClick={() => pickGrade(grade)}
+                  className={`rounded-2xl bg-gradient-to-b ${uniform.from} ${uniform.to} p-8 text-center text-white shadow-md transition hover:scale-[1.02] hover:shadow-lg`}
+                >
+                  <ShirtIcon className="mx-auto h-16 w-16 drop-shadow" />
+                  <div className="mt-2 text-xl font-extrabold">{grade}학년</div>
+                  <div className={`text-xs font-medium ${uniform.text}`}>
+                    {uniform.name} 체육복
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
