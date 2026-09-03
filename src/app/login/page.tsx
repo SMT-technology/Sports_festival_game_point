@@ -4,6 +4,22 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+function describeAuthError(message: string) {
+  if (message.includes("Invalid login credentials")) {
+    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+  }
+  if (message.includes("Email not confirmed")) {
+    return "이메일 인증이 완료되지 않은 계정입니다. Supabase 대시보드 Authentication > Users에서 해당 계정의 인증 상태를 확인하세요.";
+  }
+  if (message.includes("Failed to fetch") || message.includes("fetch failed")) {
+    return "Supabase 서버에 연결할 수 없습니다. NEXT_PUBLIC_SUPABASE_URL 값이 올바른지 확인하세요.";
+  }
+  if (message.toLowerCase().includes("api key") || message.toLowerCase().includes("apikey")) {
+    return "Supabase API 키가 올바르지 않습니다. NEXT_PUBLIC_SUPABASE_ANON_KEY 값을 확인하세요.";
+  }
+  return `로그인 실패: ${message}`;
+}
+
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -31,7 +47,7 @@ function LoginForm() {
     setLoading(false);
 
     if (error) {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+      setError(describeAuthError(error.message));
       return;
     }
 
