@@ -159,8 +159,8 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       <div>
         <h1 className="text-lg font-bold text-slate-900">🏷️ 종목 이름 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          종목 이름을 수정하세요. 왼쪽 ⠿ 을 드래그하면 순서를 바꿀 수 있고, 배점표·잠금 등 세부
-          설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
+          종목 이름을 수정하세요. 왼쪽 ⠿ 을 드래그하면 순서를 바꿀 수 있고, 배점표 등 세부 설정은
+          &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
         </p>
       </div>
 
@@ -273,14 +273,6 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                               onChange={(e) => patchLocal(ev.id, { is_active: e.target.checked })}
                             />
                             활성화
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <input
-                              type="checkbox"
-                              checked={ev.is_locked}
-                              onChange={(e) => patchLocal(ev.id, { is_locked: e.target.checked })}
-                            />
-                            입력 잠금 (교사 수정 금지, 관리자는 항상 가능)
                           </label>
                           <button
                             onClick={() => setDeleteTarget(ev)}

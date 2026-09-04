@@ -380,7 +380,6 @@ export function InputClient({
                         className={`rounded-2xl bg-gradient-to-br ${style.gradient} px-4 py-5 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
                       >
                         {ev.name}
-                        {ev.is_locked && " 🔒"}
                       </button>
                     ))}
                   </div>
@@ -419,21 +418,12 @@ export function InputClient({
                     `직접 입력 (0~${selectedEvent.max_points}점)`}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                {selectedEvent.is_locked && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                    관리자에 의해 잠김 — 수정 불가
-                  </span>
-                )}
-                {!selectedEvent.is_locked && (
-                  <button
-                    onClick={() => setBulkConfirmOpen(true)}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-                  >
-                    ✅ 전체 최종 제출{readyToFinalize.length > 0 && ` (${readyToFinalize.length}개 반)`}
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={() => setBulkConfirmOpen(true)}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              >
+                ✅ 전체 최종 제출{readyToFinalize.length > 0 && ` (${readyToFinalize.length}개 반)`}
+              </button>
             </div>
 
             {bulkError && (
@@ -448,7 +438,7 @@ export function InputClient({
               <div className="divide-y divide-slate-100">
                 {gradeClasses.map((c) => {
                   const row = rows[c.id] ?? emptyRow();
-                  const disabled = row.status === "final" || selectedEvent.is_locked || row.saving;
+                  const disabled = row.status === "final" || row.saving;
                   return (
                     <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm">
                       <span className="w-20 shrink-0 font-medium text-slate-700">
