@@ -152,7 +152,7 @@ export function InputClient({
       },
       {
         key: "minigame",
-        label: CATEGORY_LABEL.minigame,
+        label: "신관",
         emoji: "🎮",
         gradient: "from-fuchsia-500 to-purple-600",
         events: grouped.get("minigame") ?? [],

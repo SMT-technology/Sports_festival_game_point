@@ -40,7 +40,7 @@ export function NavBar({
               height={24}
               className="rounded-full"
             />
-            체육대회 점수 관리
+            신도체육한마당
           </span>
           <nav className="flex gap-1">
             {LINKS.map((link) => {

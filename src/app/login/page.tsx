@@ -78,8 +78,8 @@ function LoginForm() {
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full shadow-md ring-4 ring-blue-100">
             <Image src="/logo.jpg" alt="신도중학교 로고" width={80} height={80} priority />
           </div>
-          <h1 className="mt-3 text-xl font-extrabold text-slate-900">체육대회 점수 관리</h1>
-          <p className="mt-1 text-sm text-slate-500">신도중학교 체육대회 🎊</p>
+          <h1 className="mt-3 text-xl font-extrabold text-slate-900">신도체육한마당</h1>
+          <p className="mt-1 text-sm text-slate-500">점수 관리 시스템 🎊</p>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
