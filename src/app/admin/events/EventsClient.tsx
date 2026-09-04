@@ -13,6 +13,9 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState<Set<string>>(new Set());
+  const [dragSource, setDragSource] = useState<{ cat: EventCategory; index: number } | null>(
+    null,
+  );
 
   function toggleAdvanced(id: string) {
     setAdvancedOpen((prev) => {
@@ -41,6 +44,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }
 
+  // 저장 = 설정 저장 + 이미 제출된 점수에 배점표 변경사항 즉시 재적용을 한 번에 처리
   async function saveEvent(ev: EventRow) {
     setBusyId(ev.id);
     const supabase = createClient();
@@ -56,20 +60,20 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         max_points: ev.max_points,
       })
       .eq("id", ev.id);
-    setBusyId(null);
-    if (error) alert("저장 실패: " + error.message);
-  }
 
-  async function recompute(ev: EventRow) {
-    setBusyId(ev.id);
-    const supabase = createClient();
-    const { error } = await supabase
+    if (error) {
+      setBusyId(null);
+      alert("저장 실패: " + error.message);
+      return;
+    }
+
+    // 배점표 등 변경사항을 이미 제출된 점수에도 바로 반영되도록 재계산 트리거
+    await supabase
       .from("scores")
       .update({ updated_at: new Date().toISOString() })
       .eq("event_id", ev.id);
+
     setBusyId(null);
-    if (error) alert("재계산 실패: " + error.message);
-    else alert("배점표 변경사항이 기존 제출 점수에 재적용되었습니다.");
   }
 
   async function deleteEvent() {
@@ -96,7 +100,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         name: newEvent.name.trim(),
         category: newEvent.category,
         scoring_type: newEvent.scoring_type,
-        order_index: events.length + 1,
+        order_index: (grouped.get(newEvent.category)?.length ?? 0) + 1,
       })
       .select()
       .single();
@@ -121,13 +125,42 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     patchLocal(ev.id, { point_table: { ...ev.point_table, [next]: 0 } });
   }
 
+  function handleDragStart(cat: EventCategory, index: number) {
+    setDragSource({ cat, index });
+  }
+
+  async function handleDrop(cat: EventCategory, index: number) {
+    const source = dragSource;
+    setDragSource(null);
+    if (!source || source.cat !== cat || source.index === index) return;
+
+    const list = [...(grouped.get(cat) ?? [])];
+    const [moved] = list.splice(source.index, 1);
+    list.splice(index, 0, moved);
+
+    const updates = list.map((ev, i) => ({ id: ev.id, order_index: i }));
+    setEvents((prev) =>
+      prev.map((e) => {
+        const u = updates.find((x) => x.id === e.id);
+        return u ? { ...e, order_index: u.order_index } : e;
+      }),
+    );
+
+    const supabase = createClient();
+    await Promise.all(
+      updates.map((u) =>
+        supabase.from("events").update({ order_index: u.order_index }).eq("id", u.id),
+      ),
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-lg font-bold text-slate-900">🏷️ 종목 이름 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          종목 이름을 수정하세요. 배점표·잠금 등 세부 설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수
-          있어요.
+          종목 이름을 수정하세요. 왼쪽 ⠿ 을 드래그하면 순서를 바꿀 수 있고, 배점표·잠금 등 세부
+          설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
         </p>
       </div>
 
@@ -189,11 +222,27 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
           <div key={cat}>
             <h2 className="mb-2 text-sm font-bold text-slate-700">{CATEGORY_LABEL[cat]}</h2>
             <div className="space-y-3">
-              {list.map((ev) => {
+              {list.map((ev, index) => {
                 const isOpen = advancedOpen.has(ev.id);
+                const isDragging = dragSource?.cat === cat && dragSource.index === index;
                 return (
-                  <div key={ev.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div
+                    key={ev.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDrop(cat, index)}
+                    className={`rounded-xl border bg-white p-4 transition ${
+                      isDragging ? "border-blue-400 opacity-50" : "border-slate-200"
+                    }`}
+                  >
                     <div className="flex flex-wrap items-center gap-3">
+                      <span
+                        draggable
+                        onDragStart={() => handleDragStart(cat, index)}
+                        title="드래그해서 순서 변경"
+                        className="cursor-grab select-none px-1 text-lg text-slate-300 hover:text-slate-500 active:cursor-grabbing"
+                      >
+                        ⠿
+                      </span>
                       <input
                         value={ev.name}
                         onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
@@ -218,17 +267,6 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                       <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
                         <div className="flex flex-wrap items-center gap-3">
                           <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                            순서
-                            <input
-                              type="number"
-                              value={ev.order_index}
-                              onChange={(e) =>
-                                patchLocal(ev.id, { order_index: Number(e.target.value) })
-                              }
-                              className="w-16 rounded-lg border border-slate-300 px-2 py-1"
-                            />
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
                             <input
                               type="checkbox"
                               checked={ev.is_active}
@@ -242,36 +280,20 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                               checked={ev.is_locked}
                               onChange={(e) => patchLocal(ev.id, { is_locked: e.target.checked })}
                             />
-                            입력 잠금
+                            입력 잠금 (교사 수정 금지, 관리자는 항상 가능)
                           </label>
-                          <div className="ml-auto flex gap-2">
-                            <button
-                              onClick={() => recompute(ev)}
-                              disabled={busyId === ev.id}
-                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                              재계산 적용
-                            </button>
-                            <button
-                              onClick={() => saveEvent(ev)}
-                              disabled={busyId === ev.id}
-                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
-                              설정 저장
-                            </button>
-                            <button
-                              onClick={() => setDeleteTarget(ev)}
-                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
-                            >
-                              삭제
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => setDeleteTarget(ev)}
+                            className="ml-auto rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                          >
+                            삭제
+                          </button>
                         </div>
 
                         {ev.scoring_type === "rank" && (
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs text-slate-400">
-                              순위별 점수 (표에 없는 순위는 0점)
+                              순위별 점수 (표에 없는 순위는 0점) — 저장을 눌러야 반영됩니다
                             </span>
                             {Object.entries(ev.point_table)
                               .sort((a, b) => Number(a[0]) - Number(b[0]))

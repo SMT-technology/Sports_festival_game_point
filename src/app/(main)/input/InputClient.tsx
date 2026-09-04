@@ -40,6 +40,13 @@ const GRADE_UNIFORM: Record<number, string> = {
   3: "fill-green-600",
 };
 
+// 종목 분류별 색상/이모지 (체육대회 컨셉)
+const CATEGORY_STYLE: Record<EventCategory, { emoji: string; gradient: string }> = {
+  relay: { emoji: "🏃", gradient: "from-red-500 to-orange-500" },
+  minigame: { emoji: "🎮", gradient: "from-fuchsia-500 to-purple-600" },
+  cheer: { emoji: "📣", gradient: "from-amber-400 to-yellow-500" },
+};
+
 function ShirtGraphic({ fillClass, label }: { fillClass: string; label: string }) {
   return (
     <svg viewBox="0 0 100 100" className="mx-auto h-28 w-28 drop-shadow-md" aria-hidden>
@@ -355,21 +362,22 @@ export function InputClient({
             <p className="mt-1 text-sm text-slate-500">담당 종목을 선택해주세요.</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {CATEGORY_ORDER.map((cat) => {
               const list = grouped.get(cat) ?? [];
               if (list.length === 0) return null;
+              const style = CATEGORY_STYLE[cat];
               return (
                 <div key={cat}>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-400">
-                    {CATEGORY_LABEL[cat]}
+                  <p className="mb-2 text-sm font-bold text-slate-600">
+                    {style.emoji} {CATEGORY_LABEL[cat]}
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {list.map((ev) => (
                       <button
                         key={ev.id}
                         onClick={() => pickEvent(ev.id)}
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-400 hover:text-blue-700 hover:shadow"
+                        className={`rounded-2xl bg-gradient-to-br ${style.gradient} px-4 py-5 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
                       >
                         {ev.name}
                         {ev.is_locked && " 🔒"}
