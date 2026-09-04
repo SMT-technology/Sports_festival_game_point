@@ -10,6 +10,8 @@
 
 drop policy if exists "scores_insert_assigned_or_admin" on public.scores;
 drop policy if exists "scores_update_assigned_or_admin" on public.scores;
+drop policy if exists "scores_insert_authenticated_or_admin" on public.scores;
+drop policy if exists "scores_update_draft_or_admin" on public.scores;
 
 create policy "scores_insert_authenticated_or_admin" on public.scores
 for insert with check (
