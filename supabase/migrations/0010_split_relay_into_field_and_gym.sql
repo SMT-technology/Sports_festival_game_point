@@ -1,27 +1,10 @@
 -- ============================================================================
--- "반대항전"(relay) 카테고리를 "운동장"(field) / "체육관"(gym) 두 개의
--- 실제 카테고리로 분리한다. 지금까지는 입력 화면에서만 순서 기준으로
--- 임시로 나눠 보여줬는데, 이제 관리자 화면(종목 이름 관리)에서도 두 개의
--- 독립된 분류로 관리할 수 있도록 데이터 자체를 나눈다.
+-- (더 이상 필요 없음 — no-op)
 --
--- 기존 relay 종목 중 order_index 기준 뒤쪽 2개는 gym, 나머지는 field로
--- 재배정한다 (지금까지 입력 화면에 보이던 것과 동일한 기준).
+-- 원래 이 파일에서 하던 운동장(field)/체육관(gym) 분리 작업은 0009번
+-- 마이그레이션(0009_split_field_and_gym.sql)으로 옮겨서 처리한다.
+-- 파일 번호가 밀리지 않도록 빈 파일로 남겨둔다. 이미 0010을 실행한 적이
+-- 있어도(과거 버전) 다시 실행 시 아무 일도 일어나지 않는다.
 -- ============================================================================
 
--- 1) 기존 재배정 전에 제약을 잠시 제거 (제약이 있으면 중간 상태에서 막힘)
-alter table public.events drop constraint events_category_check;
-
--- 2) order_index 기준 뒤에서 2개 = gym, 나머지 = field
-with ranked as (
-  select id, row_number() over (order by order_index desc) as rn_from_end
-  from public.events
-  where category = 'relay'
-)
-update public.events e
-set category = case when r.rn_from_end <= 2 then 'gym' else 'field' end
-from ranked r
-where e.id = r.id;
-
--- 3) 새 허용값으로 제약 재생성 (relay 대신 field/gym)
-alter table public.events add constraint events_category_check
-  check (category in ('field', 'gym', 'minigame', 'cheer'));
+select 1;
