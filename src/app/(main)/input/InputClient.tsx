@@ -31,7 +31,7 @@ function rowFromScore(score: ScoreRow): RowState {
   };
 }
 
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
 
 // 학년별 체육복 색상
 const GRADE_UNIFORM: Record<number, string> = {
@@ -130,23 +130,36 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // 운동장/체육관은 이제 실제로 분리된 카테고리(field/gym)라서 그대로 가져오면 된다.
-  // "단합 미니게임"은 화면에서만 "신관"이라는 이름으로 보여준다 (실제 카테고리명은 그대로).
-  const displayGroups = useMemo(
-    () => [
+  // 운동장/체육관은 실제로 분리된 카테고리(field/gym)다. 그 안에서도
+  // 채점 방식이 "직접 입력(direct)"인 종목은 그 장소만의 응원질서(추가점수)로
+  // 보고 노란 보너스 버튼으로 따로 빼서 보여준다. 신관(미니게임)에는 이 개념이
+  // 없어서 항상 일반 버튼으로만 보여준다.
+  function splitBonus(list: EventRow[]) {
+    return {
+      normal: list.filter((e) => e.scoring_type !== "direct"),
+      bonus: list.filter((e) => e.scoring_type === "direct"),
+    };
+  }
+
+  const displayGroups = useMemo(() => {
+    const field = splitBonus(grouped.get("field") ?? []);
+    const gym = splitBonus(grouped.get("gym") ?? []);
+    return [
       {
         key: "field",
         label: CATEGORY_LABEL.field,
         emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
-        events: grouped.get("field") ?? [],
+        events: field.normal,
+        bonusEvents: field.bonus,
       },
       {
         key: "gym",
         label: CATEGORY_LABEL.gym,
         emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
-        events: grouped.get("gym") ?? [],
+        events: gym.normal,
+        bonusEvents: gym.bonus,
       },
       {
         key: "minigame",
@@ -154,14 +167,10 @@ export function InputClient({
         emoji: "🏢",
         gradient: "from-fuchsia-500 to-purple-600",
         events: grouped.get("minigame") ?? [],
+        bonusEvents: [] as EventRow[],
       },
-    ],
-    [grouped],
-  );
-
-  // 응원·질서는 별도 구역 없이, 각 장소 구역마다 보너스 버튼으로 끼워 넣는다
-  // (실제로는 전부 같은 하나의 응원질서 종목을 가리킴)
-  const cheerEvent = useMemo(() => (grouped.get("cheer") ?? [])[0] ?? null, [grouped]);
+    ];
+  }, [grouped]);
 
   const gradeClasses = useMemo(
     () =>
@@ -391,7 +400,7 @@ export function InputClient({
 
           <div className="space-y-6">
             {displayGroups.map((group) => {
-              if (group.events.length === 0 && !cheerEvent) return null;
+              if (group.events.length === 0 && group.bonusEvents.length === 0) return null;
               return (
                 <div key={group.key}>
                   <p className="mb-2 flex items-center gap-2">
@@ -408,16 +417,17 @@ export function InputClient({
                         {ev.name}
                       </button>
                     ))}
-                    {cheerEvent && (
+                    {group.bonusEvents.map((ev) => (
                       <button
-                        onClick={() => pickEvent(cheerEvent.id)}
+                        key={ev.id}
+                        onClick={() => pickEvent(ev.id)}
                         className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 px-4 py-6 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg"
                       >
-                        응원질서
+                        {ev.name}
                         <br />
                         (추가점수)
                       </button>
-                    )}
+                    ))}
                   </div>
                 </div>
               );

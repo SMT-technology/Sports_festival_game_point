@@ -1,5 +1,5 @@
 export type Role = "teacher" | "admin";
-export type EventCategory = "field" | "gym" | "minigame" | "cheer";
+export type EventCategory = "field" | "gym" | "minigame";
 export type ScoringType = "rank" | "pass_fail" | "direct";
 export type ScoreStatus = "draft" | "final";
 

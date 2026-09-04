@@ -6,7 +6,7 @@ import { CATEGORY_LABEL } from "@/lib/scoring";
 import type { EventCategory, EventRow, ScoringType } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
 
 export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
@@ -214,6 +214,10 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
             추가
           </button>
         </div>
+        <p className="mt-2 text-xs text-slate-400">
+          💡 운동장/체육관 분류에서 채점 방식을 &ldquo;직접 입력&rdquo;으로 추가하면, 입력
+          화면에서 그 장소만의 노란 응원질서(추가점수) 버튼으로 자동 표시돼요.
+        </p>
       </div>
 
       {CATEGORY_ORDER.map((cat) => {

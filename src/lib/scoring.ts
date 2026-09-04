@@ -4,7 +4,6 @@ export const CATEGORY_LABEL: Record<EventCategory, string> = {
   field: "운동장",
   gym: "체육관",
   minigame: "단합 미니게임",
-  cheer: "응원·질서",
 };
 
 export function classLabel(c: Pick<ClassRow, "grade" | "class_no">) {
