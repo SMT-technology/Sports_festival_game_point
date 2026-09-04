@@ -139,21 +139,21 @@ export function InputClient({
       {
         key: "field",
         label: "운동장",
-        emoji: "🏟️",
+        emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
         events: relayList.slice(0, half),
       },
       {
         key: "gym",
         label: "체육관",
-        emoji: "🏸",
+        emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
         events: relayList.slice(half),
       },
       {
         key: "minigame",
         label: "신관",
-        emoji: "🎮",
+        emoji: "🏢",
         gradient: "from-fuchsia-500 to-purple-600",
         events: grouped.get("minigame") ?? [],
       },
@@ -398,8 +398,9 @@ export function InputClient({
               if (group.events.length === 0) return null;
               return (
                 <div key={group.key}>
-                  <p className="mb-2 text-base font-extrabold text-slate-700">
-                    {group.emoji} {group.label}
+                  <p className="mb-2 flex items-center gap-2">
+                    <span className="text-3xl">{group.emoji}</span>
+                    <span className="text-2xl font-extrabold text-slate-800">{group.label}</span>
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {group.events.map((ev) => (
