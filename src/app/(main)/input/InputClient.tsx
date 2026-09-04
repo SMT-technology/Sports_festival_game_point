@@ -130,14 +130,15 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // "반대항전"은 운동장/체육관으로 나눠서 보여준다 (체육관은 뒤쪽 1개만,
-  // 나머지는 운동장). 실제 카테고리는 여전히 relay 하나이며, 화면에서만
+  // "반대항전"은 운동장/체육관으로 나눠서 보여준다 (체육관은 뒤쪽 2개,
+  // 나머지는 운동장 — 예: 전체 5개면 운동장 3개 + 체육관 2개). 실제
+  // 카테고리는 여전히 relay 하나이며, 화면에서만
   // 순서(order_index) 기준으로 분리 — 관리자 화면에서 드래그로 순서를
   // 바꾸면 어느 종목이 운동장/체육관에 들어갈지도 바뀐다.
   // "단합 미니게임"은 신관 하나로 합쳐서 보여준다.
   const displayGroups = useMemo(() => {
     const relayList = grouped.get("relay") ?? [];
-    const gymSize = Math.min(1, relayList.length);
+    const gymSize = Math.min(2, relayList.length);
     return [
       {
         key: "field",
