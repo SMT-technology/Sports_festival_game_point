@@ -6,6 +6,7 @@ import { CATEGORY_LABEL } from "@/lib/scoring";
 import type { ClassRow, EventCategory, EventRow, Role, ScoreRow } from "@/lib/database.types";
 import { DetailedTable } from "./DetailedTable";
 import { PodiumBoard } from "./PodiumBoard";
+import { SubmissionMatrix } from "./SubmissionMatrix";
 import type { ClassComputed } from "./types";
 
 const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
@@ -167,6 +168,10 @@ export function ResultsClient({
           </div>
         ))}
       </div>
+
+      {role === "admin" && (
+        <SubmissionMatrix classes={initialClasses} events={events} finalScores={finalScores} />
+      )}
 
       {showPodium ? (
         <PodiumBoard classesByGrade={classesByGrade} classComputed={classComputed} />
