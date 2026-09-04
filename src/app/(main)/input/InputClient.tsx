@@ -31,7 +31,7 @@ function rowFromScore(score: ScoreRow): RowState {
   };
 }
 
-const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
 
 // 학년별 체육복 색상
 const GRADE_UNIFORM: Record<number, string> = {
@@ -130,29 +130,23 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // "반대항전"은 운동장/체육관으로 나눠서 보여준다 (체육관은 뒤쪽 2개,
-  // 나머지는 운동장 — 예: 전체 5개면 운동장 3개 + 체육관 2개). 실제
-  // 카테고리는 여전히 relay 하나이며, 화면에서만
-  // 순서(order_index) 기준으로 분리 — 관리자 화면에서 드래그로 순서를
-  // 바꾸면 어느 종목이 운동장/체육관에 들어갈지도 바뀐다.
-  // "단합 미니게임"은 신관 하나로 합쳐서 보여준다.
-  const displayGroups = useMemo(() => {
-    const relayList = grouped.get("relay") ?? [];
-    const gymSize = Math.min(2, relayList.length);
-    return [
+  // 운동장/체육관은 이제 실제로 분리된 카테고리(field/gym)라서 그대로 가져오면 된다.
+  // "단합 미니게임"은 화면에서만 "신관"이라는 이름으로 보여준다 (실제 카테고리명은 그대로).
+  const displayGroups = useMemo(
+    () => [
       {
         key: "field",
-        label: "운동장",
+        label: CATEGORY_LABEL.field,
         emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
-        events: relayList.slice(0, relayList.length - gymSize),
+        events: grouped.get("field") ?? [],
       },
       {
         key: "gym",
-        label: "체육관",
+        label: CATEGORY_LABEL.gym,
         emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
-        events: relayList.slice(relayList.length - gymSize),
+        events: grouped.get("gym") ?? [],
       },
       {
         key: "minigame",
@@ -161,8 +155,9 @@ export function InputClient({
         gradient: "from-fuchsia-500 to-purple-600",
         events: grouped.get("minigame") ?? [],
       },
-    ];
-  }, [grouped]);
+    ],
+    [grouped],
+  );
 
   // 응원·질서는 별도 구역 없이, 각 장소 구역마다 보너스 버튼으로 끼워 넣는다
   // (실제로는 전부 같은 하나의 응원질서 종목을 가리킴)

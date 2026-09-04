@@ -6,7 +6,7 @@ import { CATEGORY_LABEL } from "@/lib/scoring";
 import type { EventCategory, EventRow, ScoringType } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
-const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
 
 export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
@@ -29,7 +29,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     name: string;
     category: EventCategory;
     scoring_type: ScoringType;
-  }>({ name: "", category: "relay", scoring_type: "rank" });
+  }>({ name: "", category: "field", scoring_type: "rank" });
   const [creating, setCreating] = useState(false);
 
   const grouped = useMemo(() => {
@@ -110,7 +110,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       return;
     }
     setEvents((prev) => [...prev, data as EventRow]);
-    setNewEvent({ name: "", category: "relay", scoring_type: "rank" });
+    setNewEvent({ name: "", category: "field", scoring_type: "rank" });
   }
 
   function updatePointTable(ev: EventRow, rank: number, value: number) {

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { CATEGORY_LABEL, sortEvents } from "@/lib/scoring";
 import type { ClassRow, EventCategory, EventRow, ScoreRow } from "@/lib/database.types";
 
-const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
 const GRADES = [1, 2, 3] as const;
 
 export function SubmissionMatrix({

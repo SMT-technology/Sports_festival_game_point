@@ -46,7 +46,8 @@ export function DetailedTable({
                 <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
                   <th className="w-14 px-5 py-2">순위</th>
                   <th className="px-2 py-2">반</th>
-                  <th className="px-2 py-2 text-right">반대항전</th>
+                  <th className="px-2 py-2 text-right">운동장</th>
+                  <th className="px-2 py-2 text-right">체육관</th>
                   <th className="px-2 py-2 text-right">미니게임</th>
                   <th className="px-2 py-2 text-right">응원·질서</th>
                   <th className="px-5 py-2 text-right">총점</th>
@@ -70,7 +71,10 @@ export function DetailedTable({
                           {classLabel(c)}
                         </td>
                         <td className="px-2 py-2.5 text-right text-slate-600">
-                          {data.byCategory.relay}
+                          {data.byCategory.field}
+                        </td>
+                        <td className="px-2 py-2.5 text-right text-slate-600">
+                          {data.byCategory.gym}
                         </td>
                         <td className="px-2 py-2.5 text-right text-slate-600">
                           {data.byCategory.minigame}
@@ -84,7 +88,7 @@ export function DetailedTable({
                       </tr>
                       {isOpen && (
                         <tr className="border-b border-slate-50 bg-slate-50/60">
-                          <td colSpan={6} className="px-5 py-3">
+                          <td colSpan={7} className="px-5 py-3">
                             {data.details.length === 0 ? (
                               <p className="text-xs text-slate-400">아직 제출된 점수가 없습니다.</p>
                             ) : (

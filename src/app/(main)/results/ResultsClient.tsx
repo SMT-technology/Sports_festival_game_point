@@ -9,7 +9,7 @@ import { PodiumBoard } from "./PodiumBoard";
 import { SubmissionMatrix } from "./SubmissionMatrix";
 import type { ClassComputed } from "./types";
 
-const CATEGORY_ORDER: EventCategory[] = ["relay", "minigame", "cheer"];
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame", "cheer"];
 
 export function ResultsClient({
   role,
@@ -74,7 +74,11 @@ export function ResultsClient({
     const map: ClassComputed = new Map();
 
     for (const c of initialClasses) {
-      map.set(c.id, { total: 0, byCategory: { relay: 0, minigame: 0, cheer: 0 }, details: [] });
+      map.set(c.id, {
+        total: 0,
+        byCategory: { field: 0, gym: 0, minigame: 0, cheer: 0 },
+        details: [],
+      });
     }
 
     for (const s of finalScores) {
@@ -152,7 +156,7 @@ export function ResultsClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {progress.map((p) => (
           <div key={p.cat} className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold text-slate-400">{CATEGORY_LABEL[p.cat]}</p>

@@ -1,7 +1,8 @@
 import type { ClassRow, EventCategory, EventRow } from "@/lib/database.types";
 
 export const CATEGORY_LABEL: Record<EventCategory, string> = {
-  relay: "반대항전",
+  field: "운동장",
+  gym: "체육관",
   minigame: "단합 미니게임",
   cheer: "응원·질서",
 };
