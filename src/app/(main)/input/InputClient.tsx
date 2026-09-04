@@ -130,42 +130,49 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // "반대항전" 종목을 장소 기준으로 운동장/체육관 두 그룹으로 나눠서 보여준다
-  // (실제 카테고리는 여전히 relay 하나지만, 화면에서만 앞 절반/뒤 절반으로 분리)
+  // "반대항전"은 운동장/체육관으로, "단합 미니게임"은 신관 3층/4층으로 나눠서 보여준다
+  // (실제 카테고리는 여전히 relay/minigame 하나씩이지만, 화면에서만 순서 기준
+  //  앞 절반/뒤 절반으로 분리 — 3층·4층 선생님이 동시에 다른 종목을 입력하기 위함)
   const displayGroups = useMemo(() => {
     const relayList = grouped.get("relay") ?? [];
-    const half = Math.ceil(relayList.length / 2);
+    const relayHalf = Math.ceil(relayList.length / 2);
+    const minigameList = grouped.get("minigame") ?? [];
+    const minigameHalf = Math.ceil(minigameList.length / 2);
     return [
       {
         key: "field",
         label: "운동장",
         emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
-        events: relayList.slice(0, half),
+        events: relayList.slice(0, relayHalf),
       },
       {
         key: "gym",
         label: "체육관",
         emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
-        events: relayList.slice(half),
+        events: relayList.slice(relayHalf),
       },
       {
-        key: "minigame",
-        label: "신관",
+        key: "minigame-3f",
+        label: "신관 (3층)",
         emoji: "🏢",
         gradient: "from-fuchsia-500 to-purple-600",
-        events: grouped.get("minigame") ?? [],
+        events: minigameList.slice(0, minigameHalf),
       },
       {
-        key: "cheer",
-        label: CATEGORY_LABEL.cheer,
-        emoji: "📣",
-        gradient: "from-amber-400 to-yellow-500",
-        events: grouped.get("cheer") ?? [],
+        key: "minigame-4f",
+        label: "신관 (4층)",
+        emoji: "🏢",
+        gradient: "from-fuchsia-500 to-purple-600",
+        events: minigameList.slice(minigameHalf),
       },
     ];
   }, [grouped]);
+
+  // 응원·질서는 별도 구역 없이, 각 장소 구역마다 보너스 버튼으로 끼워 넣는다
+  // (실제로는 전부 같은 하나의 응원질서 종목을 가리킴)
+  const cheerEvent = useMemo(() => (grouped.get("cheer") ?? [])[0] ?? null, [grouped]);
 
   const gradeClasses = useMemo(
     () =>
@@ -395,7 +402,7 @@ export function InputClient({
 
           <div className="space-y-6">
             {displayGroups.map((group) => {
-              if (group.events.length === 0) return null;
+              if (group.events.length === 0 && !cheerEvent) return null;
               return (
                 <div key={group.key}>
                   <p className="mb-2 flex items-center gap-2">
@@ -412,6 +419,16 @@ export function InputClient({
                         {ev.name}
                       </button>
                     ))}
+                    {cheerEvent && (
+                      <button
+                        onClick={() => pickEvent(cheerEvent.id)}
+                        className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 px-4 py-6 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg"
+                      >
+                        응원질서
+                        <br />
+                        (추가점수)
+                      </button>
+                    )}
                   </div>
                 </div>
               );
