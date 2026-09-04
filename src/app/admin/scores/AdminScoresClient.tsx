@@ -118,7 +118,6 @@ export function AdminScoresClient({
       .from("scores")
       .upsert(
         {
-          id: row.scoreId,
           event_id: selectedEvent.id,
           class_id: classId,
           rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
@@ -184,7 +183,6 @@ export function AdminScoresClient({
     const payload = finalizeTargets.map((c) => {
       const row = rows[c.id];
       return {
-        id: row.scoreId,
         event_id: selectedEvent.id,
         class_id: c.id,
         rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
@@ -234,14 +232,17 @@ export function AdminScoresClient({
   }
 
   async function openAudit(classId: string) {
-    const row = rows[classId];
-    if (!row?.scoreId) return;
+    if (!selectedEvent) return;
     setAuditFor(classId);
     const supabase = createClient();
+    // score_id 기준이 아니라 event_id + class_id 기준으로 조회한다.
+    // 점수를 "초기화"하면 기존 행이 삭제되고 새 id로 다시 생성되기 때문에,
+    // score_id로만 조회하면 초기화 이전 이력이 안 보이는 문제가 있었음.
     const { data } = await supabase
       .from("score_audit_log")
       .select("*")
-      .eq("score_id", row.scoreId)
+      .eq("event_id", selectedEvent.id)
+      .eq("class_id", classId)
       .order("changed_at", { ascending: false });
     const logs = (data ?? []) as ScoreAuditLog[];
     setAuditLogs(logs);
@@ -423,23 +424,21 @@ export function AdminScoresClient({
                           >
                             최종 확정
                           </button>
+                          <button
+                            onClick={() => openAudit(c.id)}
+                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                          >
+                            이력
+                          </button>
                           {row.scoreId && (
-                            <>
-                              <button
-                                onClick={() => openAudit(c.id)}
-                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
-                              >
-                                이력
-                              </button>
-                              <button
-                                onClick={() =>
-                                  setResetTarget({ classId: c.id, className: classLabel(c) })
-                                }
-                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                              >
-                                🔄 초기화
-                              </button>
-                            </>
+                            <button
+                              onClick={() =>
+                                setResetTarget({ classId: c.id, className: classLabel(c) })
+                              }
+                              className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                            >
+                              🔄 초기화
+                            </button>
                           )}
                         </div>
                       </div>

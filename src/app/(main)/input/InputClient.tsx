@@ -240,7 +240,6 @@ export function InputClient({
       .from("scores")
       .upsert(
         {
-          id: row.scoreId,
           event_id: selectedEvent.id,
           class_id: classId,
           rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
@@ -281,7 +280,6 @@ export function InputClient({
     const payload = readyToFinalize.map((c) => {
       const row = rows[c.id];
       return {
-        id: row.scoreId,
         event_id: selectedEvent.id,
         class_id: c.id,
         rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
