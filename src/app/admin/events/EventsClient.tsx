@@ -52,6 +52,8 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       .from("events")
       .update({
         name: ev.name,
+        category: ev.category,
+        scoring_type: ev.scoring_type,
         order_index: ev.order_index,
         is_active: ev.is_active,
         is_locked: ev.is_locked,
@@ -159,8 +161,12 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       <div>
         <h1 className="text-lg font-bold text-slate-900">🏷️ 종목 이름 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          종목 이름을 수정하세요. 왼쪽 ⠿ 을 드래그하면 순서를 바꿀 수 있고, 배점표 등 세부 설정은
-          &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
+          종목 이름·분류(장소)·채점 방식을 바로 수정할 수 있어요. 왼쪽 ⠿ 을 드래그하면 순서를
+          바꿀 수 있고, 배점표 등 세부 설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
+        </p>
+        <p className="mt-1 text-xs text-amber-600">
+          ⚠️ 이미 점수가 제출된 종목의 채점 방식을 바꾸면, 저장 시 기존 점수가 새 방식에 맞지
+          않아 0점으로 재계산될 수 있어요 — 되도록 점수 입력 전에만 바꿔주세요.
         </p>
       </div>
 
@@ -252,6 +258,32 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
                         className="w-56 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
                       />
+                      <select
+                        value={ev.category}
+                        onChange={(e) =>
+                          patchLocal(ev.id, { category: e.target.value as EventCategory })
+                        }
+                        title="분류(장소)"
+                        className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+                      >
+                        {CATEGORY_ORDER.map((c) => (
+                          <option key={c} value={c}>
+                            {CATEGORY_LABEL[c]}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={ev.scoring_type}
+                        onChange={(e) =>
+                          patchLocal(ev.id, { scoring_type: e.target.value as ScoringType })
+                        }
+                        title="채점 방식"
+                        className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
+                      >
+                        <option value="rank">순위 배점</option>
+                        <option value="pass_fail">통과/실패</option>
+                        <option value="direct">직접 입력</option>
+                      </select>
                       <button
                         onClick={() => saveEvent(ev)}
                         disabled={busyId === ev.id}
