@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 export function ConfirmDialog({
   open,
   title,
@@ -13,7 +15,7 @@ export function ConfirmDialog({
 }: {
   open: boolean;
   title: string;
-  description?: string;
+  description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;

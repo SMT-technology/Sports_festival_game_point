@@ -40,13 +40,6 @@ const GRADE_UNIFORM: Record<number, string> = {
   3: "fill-green-600",
 };
 
-// 종목 분류별 색상/이모지 (체육대회 컨셉)
-const CATEGORY_STYLE: Record<EventCategory, { emoji: string; gradient: string }> = {
-  relay: { emoji: "🏃", gradient: "from-red-500 to-orange-500" },
-  minigame: { emoji: "🎮", gradient: "from-fuchsia-500 to-purple-600" },
-  cheer: { emoji: "📣", gradient: "from-amber-400 to-yellow-500" },
-};
-
 function ShirtGraphic({ fillClass, label }: { fillClass: string; label: string }) {
   return (
     <svg viewBox="0 0 100 100" className="mx-auto h-28 w-28 drop-shadow-md" aria-hidden>
@@ -133,8 +126,46 @@ export function InputClient({
     const map = new Map<EventCategory, EventRow[]>();
     for (const cat of CATEGORY_ORDER) map.set(cat, []);
     for (const ev of events) map.get(ev.category)?.push(ev);
+    for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
     return map;
   }, [events]);
+
+  // "반대항전" 종목을 장소 기준으로 운동장/체육관 두 그룹으로 나눠서 보여준다
+  // (실제 카테고리는 여전히 relay 하나지만, 화면에서만 앞 절반/뒤 절반으로 분리)
+  const displayGroups = useMemo(() => {
+    const relayList = grouped.get("relay") ?? [];
+    const half = Math.ceil(relayList.length / 2);
+    return [
+      {
+        key: "field",
+        label: "운동장",
+        emoji: "🏟️",
+        gradient: "from-red-500 to-orange-500",
+        events: relayList.slice(0, half),
+      },
+      {
+        key: "gym",
+        label: "체육관",
+        emoji: "🏸",
+        gradient: "from-sky-500 to-blue-600",
+        events: relayList.slice(half),
+      },
+      {
+        key: "minigame",
+        label: CATEGORY_LABEL.minigame,
+        emoji: "🎮",
+        gradient: "from-fuchsia-500 to-purple-600",
+        events: grouped.get("minigame") ?? [],
+      },
+      {
+        key: "cheer",
+        label: CATEGORY_LABEL.cheer,
+        emoji: "📣",
+        gradient: "from-amber-400 to-yellow-500",
+        events: grouped.get("cheer") ?? [],
+      },
+    ];
+  }, [grouped]);
 
   const gradeClasses = useMemo(
     () =>
@@ -355,29 +386,27 @@ export function InputClient({
         <div className="space-y-5">
           <BackButton onClick={() => setStep("grade")} label="← 뒤로 (학년 다시 선택)" />
           <div className="text-center">
-            <p className="text-3xl">🏅</p>
-            <h1 className="mt-2 text-lg font-bold text-slate-900">
+            <p className="text-5xl">🏅</p>
+            <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
               {selectedGrade}학년 · 어느 종목인가요?
             </h1>
             <p className="mt-1 text-sm text-slate-500">담당 종목을 선택해주세요.</p>
           </div>
 
           <div className="space-y-6">
-            {CATEGORY_ORDER.map((cat) => {
-              const list = grouped.get(cat) ?? [];
-              if (list.length === 0) return null;
-              const style = CATEGORY_STYLE[cat];
+            {displayGroups.map((group) => {
+              if (group.events.length === 0) return null;
               return (
-                <div key={cat}>
-                  <p className="mb-2 text-sm font-bold text-slate-600">
-                    {style.emoji} {CATEGORY_LABEL[cat]}
+                <div key={group.key}>
+                  <p className="mb-2 text-base font-extrabold text-slate-700">
+                    {group.emoji} {group.label}
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {list.map((ev) => (
+                    {group.events.map((ev) => (
                       <button
                         key={ev.id}
                         onClick={() => pickEvent(ev.id)}
-                        className={`rounded-2xl bg-gradient-to-br ${style.gradient} px-4 py-5 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
+                        className={`rounded-2xl bg-gradient-to-br ${group.gradient} px-4 py-6 text-center text-lg font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
                       >
                         {ev.name}
                       </button>
@@ -550,7 +579,20 @@ export function InputClient({
       <ConfirmDialog
         open={bulkConfirmOpen}
         title="최종으로 입력을 하시겠습니까?"
-        description={`입력된 ${readyToFinalize.length}개 반의 점수를 한 번에 최종 제출합니다. 최종 제출하면 결과 화면에 즉시 반영되고, 제출 후에는 본인이 다시 수정할 수 없습니다(잘못 입력했다면 관리자에게 요청).`}
+        description={
+          <>
+            <span className="block text-base font-extrabold text-red-600">
+              ‼️ 주의 ‼️ : 제출 시 수정 불가
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              관리자 (서민택)에게 연락!!
+            </span>
+            <span className="mt-3 block">
+              입력된 {readyToFinalize.length}개 반의 점수를 한 번에 최종 제출합니다. 결과 화면에
+              즉시 반영됩니다.
+            </span>
+          </>
+        }
         confirmLabel="전체 최종 제출"
         onCancel={() => setBulkConfirmOpen(false)}
         onConfirm={finalizeAll}
