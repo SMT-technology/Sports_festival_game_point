@@ -1,5 +1,9 @@
 -- ============================================================================
--- 체육대회 점수 관리 시스템 - 초기 스키마
+-- 신도체육한마당 점수 관리 시스템 - 초기 스키마
+--
+-- 이 파일은 여러 번 실행해도 안전합니다(idempotent). 이미 일부만 실행된
+-- 프로젝트에서 다시 처음부터 0001~0010을 순서대로 실행해도 에러 없이
+-- 빠진 부분만 채워집니다.
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
@@ -7,7 +11,7 @@ create extension if not exists "pgcrypto";
 -- ----------------------------------------------------------------------------
 -- profiles: 로그인한 교사/관리자 프로필 (auth.users 1:1)
 -- ----------------------------------------------------------------------------
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   name text not null,
@@ -34,14 +38,14 @@ begin
 end;
 $$;
 
-create trigger on_auth_user_created
+create or replace trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
 -- ----------------------------------------------------------------------------
 -- classes: 학년/반 (1학년 1~12반, 2학년 1~12반, 3학년 1~14반)
 -- ----------------------------------------------------------------------------
-create table public.classes (
+create table if not exists public.classes (
   id uuid primary key default gen_random_uuid(),
   grade smallint not null check (grade in (1, 2, 3)),
   class_no smallint not null check (class_no > 0),
@@ -50,9 +54,10 @@ create table public.classes (
 );
 
 -- ----------------------------------------------------------------------------
--- events: 종목 (반대항전 / 단합 미니게임 / 응원·질서)
+-- events: 종목 (운동장 / 체육관 / 단합 미니게임 / 응원·질서)
+-- 카테고리 값은 0009 마이그레이션에서 relay -> field/gym 으로 정리됨
 -- ----------------------------------------------------------------------------
-create table public.events (
+create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   category text not null check (category in ('relay', 'minigame', 'cheer')),
@@ -68,8 +73,11 @@ create table public.events (
 
 -- ----------------------------------------------------------------------------
 -- event_assignments: 종목별 담당(주심) 교사 배정
+-- ※ 0005 마이그레이션에서 "모든 교사가 모든 종목 입력 가능"으로 정책이
+--   바뀌면서 앱 코드에서는 더 이상 이 테이블을 사용하지 않음(사용 안 함).
+--   기존 데이터 보존을 위해 테이블 자체는 삭제하지 않고 남겨둠.
 -- ----------------------------------------------------------------------------
-create table public.event_assignments (
+create table if not exists public.event_assignments (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events(id) on delete cascade,
   teacher_id uuid not null references public.profiles(id) on delete cascade,
@@ -80,7 +88,7 @@ create table public.event_assignments (
 -- ----------------------------------------------------------------------------
 -- scores: 종목 x 반 점수
 -- ----------------------------------------------------------------------------
-create table public.scores (
+create table if not exists public.scores (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events(id) on delete cascade,
   class_id uuid not null references public.classes(id) on delete cascade,
@@ -100,7 +108,7 @@ create table public.scores (
 -- ----------------------------------------------------------------------------
 -- score_audit_log: 점수 변경 이력
 -- ----------------------------------------------------------------------------
-create table public.score_audit_log (
+create table if not exists public.score_audit_log (
   id uuid primary key default gen_random_uuid(),
   score_id uuid not null,
   event_id uuid not null,
@@ -126,6 +134,7 @@ as $$
   );
 $$;
 
+-- ※ event_assignments와 마찬가지로 현재 앱 코드에서는 사용하지 않음(사용 안 함).
 create or replace function public.is_assigned(p_event_id uuid)
 returns boolean
 language sql stable
@@ -137,6 +146,8 @@ as $$
   );
 $$;
 
+-- ※ 관리자 화면의 "입력 잠금" UI는 0007에서 제거됨. 함수는 과거 정책과의
+--   호환을 위해 남겨두되, 항상 false를 반환하도록 취급됨(0007에서 전체 해제).
 create or replace function public.event_is_locked(p_event_id uuid)
 returns boolean
 language sql stable
@@ -196,7 +207,7 @@ begin
 end;
 $$;
 
-create trigger trg_compute_score_points
+create or replace trigger trg_compute_score_points
 before insert or update on public.scores
 for each row execute function public.compute_score_points();
 
@@ -235,7 +246,7 @@ begin
 end;
 $$;
 
-create trigger trg_log_score_change
+create or replace trigger trg_log_score_change
 after insert or update on public.scores
 for each row execute function public.log_score_change();
 
@@ -251,14 +262,17 @@ alter table public.scores enable row level security;
 alter table public.score_audit_log enable row level security;
 
 -- profiles ---------------------------------------------------------------
+drop policy if exists "profiles_select_self_or_admin" on public.profiles;
 create policy "profiles_select_self_or_admin" on public.profiles
 for select using (auth.uid() = id or public.is_admin());
 
+drop policy if exists "profiles_update_self_or_admin" on public.profiles;
 create policy "profiles_update_self_or_admin" on public.profiles
 for update using (auth.uid() = id or public.is_admin())
 with check (auth.uid() = id or public.is_admin());
 
 -- 본인이 role을 스스로 승격시키지 못하도록 별도 트리거로 차단 (관리자만 role 변경 가능)
+-- (SQL Editor 등 세션 없는 컨텍스트에서의 예외는 0003에서 처리)
 create or replace function public.prevent_self_role_escalation()
 returns trigger
 language plpgsql
@@ -272,62 +286,73 @@ begin
 end;
 $$;
 
-create trigger trg_prevent_self_role_escalation
+create or replace trigger trg_prevent_self_role_escalation
 before update on public.profiles
 for each row execute function public.prevent_self_role_escalation();
 
+drop policy if exists "profiles_insert_admin_only" on public.profiles;
 create policy "profiles_insert_admin_only" on public.profiles
 for insert with check (public.is_admin());
 
+drop policy if exists "profiles_delete_admin_only" on public.profiles;
 create policy "profiles_delete_admin_only" on public.profiles
 for delete using (public.is_admin());
 
 -- classes ------------------------------------------------------------------
+drop policy if exists "classes_select_authenticated" on public.classes;
 create policy "classes_select_authenticated" on public.classes
 for select using (auth.role() = 'authenticated');
 
+drop policy if exists "classes_write_admin_only" on public.classes;
 create policy "classes_write_admin_only" on public.classes
 for all using (public.is_admin()) with check (public.is_admin());
 
 -- events ---------------------------------------------------------------
+drop policy if exists "events_select_authenticated" on public.events;
 create policy "events_select_authenticated" on public.events
 for select using (auth.role() = 'authenticated');
 
+drop policy if exists "events_write_admin_only" on public.events;
 create policy "events_write_admin_only" on public.events
 for all using (public.is_admin()) with check (public.is_admin());
 
 -- event_assignments ------------------------------------------------------
+drop policy if exists "assignments_select_own_or_admin" on public.event_assignments;
 create policy "assignments_select_own_or_admin" on public.event_assignments
 for select using (teacher_id = auth.uid() or public.is_admin());
 
+drop policy if exists "assignments_write_admin_only" on public.event_assignments;
 create policy "assignments_write_admin_only" on public.event_assignments
 for all using (public.is_admin()) with check (public.is_admin());
 
 -- scores ---------------------------------------------------------------
+-- (scores의 insert/update 정책은 0005에서 최종 형태로 재정의됨. 여기서는
+--  0001 시점 기준 최초 정책만 만들어두고, 실제 최신 정책은 0005가 담당)
+drop policy if exists "scores_select_authenticated" on public.scores;
 create policy "scores_select_authenticated" on public.scores
 for select using (auth.role() = 'authenticated');
 
-create policy "scores_insert_assigned_or_admin" on public.scores
-for insert with check (
-  public.is_admin()
-  or (public.is_assigned(event_id) and not public.event_is_locked(event_id))
-);
-
-create policy "scores_update_assigned_or_admin" on public.scores
-for update using (
-  public.is_admin()
-  or (public.is_assigned(event_id) and not public.event_is_locked(event_id))
-) with check (
-  public.is_admin()
-  or (public.is_assigned(event_id) and not public.event_is_locked(event_id))
-);
-
 -- score_audit_log --------------------------------------------------------
+drop policy if exists "audit_select_admin_only" on public.score_audit_log;
 create policy "audit_select_admin_only" on public.score_audit_log
 for select using (public.is_admin());
 
 -- ============================================================================
 -- Realtime
 -- ============================================================================
-alter publication supabase_realtime add table public.scores;
-alter publication supabase_realtime add table public.events;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'scores'
+  ) then
+    alter publication supabase_realtime add table public.scores;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'events'
+  ) then
+    alter publication supabase_realtime add table public.events;
+  end if;
+end $$;

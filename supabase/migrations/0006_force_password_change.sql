@@ -9,9 +9,20 @@
 --
 -- 이미 사용 중이던 기존 계정들은 갑자기 강제 변경 화면을 보지 않도록
 -- false 로 백필한다.
+--
+-- ※ 백필(false로 초기화)은 컬럼을 "처음 추가하는 시점"에만 한 번 실행됨.
+--   이미 컬럼이 있는 상태(재실행)에서는 아무 것도 건드리지 않는다 —
+--   그래야 이후 관리자가 새로 만든 계정의 must_change_password=true 값이
+--   이 마이그레이션을 다시 돌려도 실수로 false로 리셋되지 않는다.
 -- ============================================================================
 
-alter table public.profiles
-  add column must_change_password boolean not null default true;
-
-update public.profiles set must_change_password = false;
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'profiles' and column_name = 'must_change_password'
+  ) then
+    alter table public.profiles add column must_change_password boolean not null default true;
+    update public.profiles set must_change_password = false;
+  end if;
+end $$;

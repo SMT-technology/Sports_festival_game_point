@@ -26,6 +26,13 @@ set category = case when r.rn_from_end <= 2 then 'gym' else 'field' end
 from ranked r
 where e.id = r.id;
 
--- 3) 새 허용값으로 제약 재생성 (relay 대신 field/gym)
-alter table public.events add constraint events_category_check
-  check (category in ('field', 'gym', 'minigame', 'cheer'));
+-- 3) 새 허용값으로 제약 재생성 (relay 대신 field/gym) — 이미 있으면 건너뜀
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'events_category_check'
+  ) then
+    alter table public.events add constraint events_category_check
+      check (category in ('field', 'gym', 'minigame', 'cheer'));
+  end if;
+end $$;

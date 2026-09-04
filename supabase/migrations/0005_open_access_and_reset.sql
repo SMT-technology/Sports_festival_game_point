@@ -29,5 +29,6 @@ for update using (
   or (auth.role() = 'authenticated' and not public.event_is_locked(event_id))
 );
 
+drop policy if exists "scores_delete_admin_only" on public.scores;
 create policy "scores_delete_admin_only" on public.scores
 for delete using (public.is_admin());
