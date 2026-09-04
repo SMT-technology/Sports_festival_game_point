@@ -221,8 +221,9 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-400">
-          💡 운동장/체육관 분류에서 채점 방식을 &ldquo;직접 입력&rdquo;으로 추가하면, 입력
-          화면에서 그 장소만의 노란 응원질서(추가점수) 버튼으로 자동 표시돼요.
+          💡 응원 추가 점수(0~20점)는 별도 종목이 아니라, 모든 종목의 점수 입력 화면에서
+          반별로 함께 입력하도록 바뀌었어요. 따로 &ldquo;응원질서&rdquo; 종목을 추가하지
+          않아도 돼요.
         </p>
       </div>
 

@@ -17,12 +17,13 @@ interface RowState {
   rank: number | null;
   pass: boolean | null;
   direct: number | null;
+  bonus: number | null;
   status: "empty" | "draft" | "final";
   saving?: boolean;
 }
 
 function emptyRow(): RowState {
-  return { rank: null, pass: null, direct: null, status: "empty" };
+  return { rank: null, pass: null, direct: null, bonus: null, status: "empty" };
 }
 
 function rowFromScore(score: ScoreRow): RowState {
@@ -31,6 +32,7 @@ function rowFromScore(score: ScoreRow): RowState {
     rank: score.rank_value,
     pass: score.pass_value,
     direct: score.direct_value,
+    bonus: score.bonus_points,
     status: score.status,
   };
 }
@@ -123,6 +125,7 @@ export function AdminScoresClient({
           rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
           pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
           direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+          bonus_points: row.bonus ?? 0,
           status,
         },
         { onConflict: "event_id,class_id" },
@@ -188,6 +191,7 @@ export function AdminScoresClient({
         rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
         pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
         direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+        bonus_points: row.bonus ?? 0,
         status: "final" as const,
       };
     });
@@ -392,6 +396,21 @@ export function AdminScoresClient({
                             className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
                           />
                         )}
+
+                        <span className="text-xs font-bold text-amber-500">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          placeholder="응원 0~20"
+                          value={row.bonus ?? ""}
+                          onChange={(e) =>
+                            updateRow(c.id, {
+                              bonus: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className="w-24 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm"
+                        />
 
                         <span className="text-xs text-slate-400">
                           {previewPoints(selectedEvent, row).toFixed(0)}점

@@ -12,13 +12,14 @@ interface RowState {
   rank: number | null;
   pass: boolean | null;
   direct: number | null;
+  bonus: number | null;
   status: "empty" | "draft" | "final";
   saving?: boolean;
   error?: string;
 }
 
 function emptyRow(): RowState {
-  return { rank: null, pass: null, direct: null, status: "empty" };
+  return { rank: null, pass: null, direct: null, bonus: null, status: "empty" };
 }
 
 function rowFromScore(score: ScoreRow): RowState {
@@ -27,6 +28,7 @@ function rowFromScore(score: ScoreRow): RowState {
     rank: score.rank_value,
     pass: score.pass_value,
     direct: score.direct_value,
+    bonus: score.bonus_points,
     status: score.status,
   };
 }
@@ -130,36 +132,24 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // 운동장/체육관은 실제로 분리된 카테고리(field/gym)다. 그 안에서도
-  // 채점 방식이 "직접 입력(direct)"인 종목은 그 장소만의 응원질서(추가점수)로
-  // 보고 노란 보너스 버튼으로 따로 빼서 보여준다. 신관(미니게임)에는 이 개념이
-  // 없어서 항상 일반 버튼으로만 보여준다.
-  function splitBonus(list: EventRow[]) {
-    return {
-      normal: list.filter((e) => e.scoring_type !== "direct"),
-      bonus: list.filter((e) => e.scoring_type === "direct"),
-    };
-  }
-
-  const displayGroups = useMemo(() => {
-    const field = splitBonus(grouped.get("field") ?? []);
-    const gym = splitBonus(grouped.get("gym") ?? []);
-    return [
+  // 운동장/체육관/신관은 실제로 분리된 카테고리다. 응원 추가 점수는 이제
+  // 별도 종목이 아니라, 각 종목의 점수 입력 화면에서 반별로 함께 입력한다
+  // (아래 STEP 3 참고).
+  const displayGroups = useMemo(
+    () => [
       {
         key: "field",
         label: CATEGORY_LABEL.field,
         emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
-        events: field.normal,
-        bonusEvents: field.bonus,
+        events: grouped.get("field") ?? [],
       },
       {
         key: "gym",
         label: CATEGORY_LABEL.gym,
         emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
-        events: gym.normal,
-        bonusEvents: gym.bonus,
+        events: grouped.get("gym") ?? [],
       },
       {
         key: "minigame",
@@ -167,10 +157,10 @@ export function InputClient({
         emoji: "🏢",
         gradient: "from-fuchsia-500 to-purple-600",
         events: grouped.get("minigame") ?? [],
-        bonusEvents: [] as EventRow[],
       },
-    ];
-  }, [grouped]);
+    ],
+    [grouped],
+  );
 
   const gradeClasses = useMemo(
     () =>
@@ -249,6 +239,9 @@ export function InputClient({
     if (selectedEvent.scoring_type === "rank" && row.rank != null && row.rank < 1) {
       return "1 이상의 순위를 입력하세요.";
     }
+    if (row.bonus != null && (row.bonus < 0 || row.bonus > 20)) {
+      return "응원 추가 점수는 0~20점 범위로 입력하세요.";
+    }
     return null;
   }
 
@@ -288,6 +281,7 @@ export function InputClient({
           rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
           pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
           direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+          bonus_points: row.bonus ?? 0,
           status: "draft",
         },
         { onConflict: "event_id,class_id" },
@@ -328,6 +322,7 @@ export function InputClient({
         rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
         pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
         direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
+        bonus_points: row.bonus ?? 0,
         status: "final" as const,
       };
     });
@@ -400,7 +395,7 @@ export function InputClient({
 
           <div className="space-y-6">
             {displayGroups.map((group) => {
-              if (group.events.length === 0 && group.bonusEvents.length === 0) return null;
+              if (group.events.length === 0) return null;
               return (
                 <div key={group.key}>
                   <p className="mb-2 flex items-center gap-2">
@@ -415,17 +410,6 @@ export function InputClient({
                         className={`rounded-2xl bg-gradient-to-br ${group.gradient} px-4 py-6 text-center text-lg font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
                       >
                         {ev.name}
-                      </button>
-                    ))}
-                    {group.bonusEvents.map((ev) => (
-                      <button
-                        key={ev.id}
-                        onClick={() => pickEvent(ev.id)}
-                        className="rounded-2xl bg-gradient-to-br from-amber-400 to-yellow-500 px-4 py-6 text-center text-base font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg"
-                      >
-                        {ev.name}
-                        <br />
-                        (추가점수)
                       </button>
                     ))}
                   </div>
@@ -462,6 +446,8 @@ export function InputClient({
                     `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
                   {selectedEvent.scoring_type === "direct" &&
                     `직접 입력 (0~${selectedEvent.max_points}점)`}
+                  {" · "}
+                  <span className="text-amber-600">응원 추가점수 0~20점 별도 입력 가능</span>
                 </p>
               </div>
               <button
@@ -551,6 +537,22 @@ export function InputClient({
                             className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
                           />
                         )}
+
+                        <span className="text-xs font-bold text-amber-500">+</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={20}
+                          placeholder="응원 0~20"
+                          disabled={disabled}
+                          value={row.bonus ?? ""}
+                          onChange={(e) =>
+                            updateRow(c.id, {
+                              bonus: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                          className="w-24 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                        />
 
                         <span className="text-xs text-slate-400">
                           {previewPoints(selectedEvent, row).toFixed(0)}점

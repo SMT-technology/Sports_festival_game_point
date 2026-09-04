@@ -26,10 +26,16 @@ export function previewRankPoints(event: EventRow, rank: number | null): number 
 
 export function previewPoints(
   event: EventRow,
-  input: { rank?: number | null; pass?: boolean | null; direct?: number | null },
+  input: {
+    rank?: number | null;
+    pass?: boolean | null;
+    direct?: number | null;
+    bonus?: number | null;
+  },
 ): number {
-  if (event.scoring_type === "rank") return previewRankPoints(event, input.rank ?? null);
-  if (event.scoring_type === "pass_fail") return input.pass ? event.pass_points : 0;
-  if (event.scoring_type === "direct") return input.direct ?? 0;
-  return 0;
+  let base = 0;
+  if (event.scoring_type === "rank") base = previewRankPoints(event, input.rank ?? null);
+  else if (event.scoring_type === "pass_fail") base = input.pass ? event.pass_points : 0;
+  else if (event.scoring_type === "direct") base = input.direct ?? 0;
+  return base + (input.bonus ?? 0);
 }

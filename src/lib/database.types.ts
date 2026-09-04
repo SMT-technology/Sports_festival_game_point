@@ -47,6 +47,7 @@ export interface ScoreRow {
   rank_value: number | null;
   pass_value: boolean | null;
   direct_value: number | null;
+  bonus_points: number;
   computed_points: number;
   status: ScoreStatus;
   submitted_by: string | null;
