@@ -130,42 +130,35 @@ export function InputClient({
     return map;
   }, [events]);
 
-  // "반대항전"은 운동장/체육관으로, "단합 미니게임"은 신관 3층/4층으로 나눠서 보여준다
-  // (실제 카테고리는 여전히 relay/minigame 하나씩이지만, 화면에서만 순서 기준
-  //  앞 절반/뒤 절반으로 분리 — 3층·4층 선생님이 동시에 다른 종목을 입력하기 위함)
+  // "반대항전"은 운동장/체육관으로 나눠서 보여준다 (체육관은 뒤쪽 2개만,
+  // 나머지는 운동장). 실제 카테고리는 여전히 relay 하나이며, 화면에서만
+  // 순서(order_index) 기준으로 분리 — 관리자 화면에서 드래그로 순서를
+  // 바꾸면 어느 종목이 운동장/체육관에 들어갈지도 바뀐다.
+  // "단합 미니게임"은 신관 하나로 합쳐서 보여준다.
   const displayGroups = useMemo(() => {
     const relayList = grouped.get("relay") ?? [];
-    const relayHalf = Math.ceil(relayList.length / 2);
-    const minigameList = grouped.get("minigame") ?? [];
-    const minigameHalf = Math.ceil(minigameList.length / 2);
+    const gymSize = Math.min(2, relayList.length);
     return [
       {
         key: "field",
         label: "운동장",
         emoji: "🏃",
         gradient: "from-red-500 to-orange-500",
-        events: relayList.slice(0, relayHalf),
+        events: relayList.slice(0, relayList.length - gymSize),
       },
       {
         key: "gym",
         label: "체육관",
         emoji: "🏀",
         gradient: "from-sky-500 to-blue-600",
-        events: relayList.slice(relayHalf),
+        events: relayList.slice(relayList.length - gymSize),
       },
       {
-        key: "minigame-3f",
-        label: "신관 (3층)",
+        key: "minigame",
+        label: "신관",
         emoji: "🏢",
         gradient: "from-fuchsia-500 to-purple-600",
-        events: minigameList.slice(0, minigameHalf),
-      },
-      {
-        key: "minigame-4f",
-        label: "신관 (4층)",
-        emoji: "🏢",
-        gradient: "from-fuchsia-500 to-purple-600",
-        events: minigameList.slice(minigameHalf),
+        events: grouped.get("minigame") ?? [],
       },
     ];
   }, [grouped]);
