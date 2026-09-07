@@ -97,8 +97,8 @@ create table if not exists public.scores (
   direct_value numeric,
   computed_points numeric not null default 0,
   status text not null default 'draft' check (status in ('draft', 'final')),
-  submitted_by uuid references public.profiles(id),
-  updated_by uuid references public.profiles(id),
+  submitted_by uuid references public.profiles(id) on delete set null,
+  updated_by uuid references public.profiles(id) on delete set null,
   final_at timestamptz,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
@@ -116,7 +116,7 @@ create table if not exists public.score_audit_log (
   action text not null,
   old_data jsonb,
   new_data jsonb,
-  changed_by uuid references public.profiles(id),
+  changed_by uuid references public.profiles(id) on delete set null,
   changed_at timestamptz not null default now()
 );
 

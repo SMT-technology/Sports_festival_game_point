@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DEFAULT_TEACHER_PIN, nameToTeacherEmail } from "@/lib/teacherAuth";
+import { DEFAULT_TEACHER_PIN, isValidPin, nameToTeacherEmail } from "@/lib/teacherAuth";
 
 export function TeachersClient({
   currentUserId,
@@ -17,6 +17,9 @@ export function TeachersClient({
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
   const [resetBusyId, setResetBusyId] = useState<string | null>(null);
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [nameSavingId, setNameSavingId] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ name: "" });
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -70,14 +73,55 @@ export function TeachersClient({
   }
 
   async function resetPassword(p: Profile) {
-    if (!confirm(`${p.name} 님의 비밀번호를 초기값(${DEFAULT_TEACHER_PIN})으로 되돌리시겠습니까?`))
+    const pin = prompt(
+      `${p.name} 님에게 새로 발급할 임시 비밀번호(숫자 4자리)를 입력하세요`,
+      DEFAULT_TEACHER_PIN,
+    );
+    if (pin === null) return;
+    if (!isValidPin(pin)) {
+      alert("비밀번호는 숫자 4자리로 입력해주세요.");
       return;
+    }
     setResetBusyId(p.id);
-    const res = await fetch(`/api/admin/teachers/${p.id}`, { method: "PATCH" });
+    const res = await fetch(`/api/admin/teachers/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin }),
+    });
     const body = await res.json();
     setResetBusyId(null);
     if (!res.ok) alert("변경 실패: " + body.error);
-    else alert(`초기 비밀번호(${DEFAULT_TEACHER_PIN})로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.`);
+    else alert(`임시 비밀번호(${pin})로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.`);
+  }
+
+  async function saveName(p: Profile) {
+    const draft = (nameDrafts[p.id] ?? p.name).trim();
+    if (!draft || draft === p.name) return;
+    setNameSavingId(p.id);
+    setNameError((prev) => ({ ...prev, [p.id]: "" }));
+    const res = await fetch(`/api/admin/teachers/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: draft }),
+    });
+    const body = await res.json();
+    setNameSavingId(null);
+    if (!res.ok) {
+      setNameError((prev) => ({ ...prev, [p.id]: body.error ?? "이름 변경 실패" }));
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((x) =>
+        x.id === p.id
+          ? { ...x, name: draft, email: x.role === "teacher" ? nameToTeacherEmail(draft) : x.email }
+          : x,
+      ),
+    );
+    setNameDrafts((prev) => {
+      const next = { ...prev };
+      delete next[p.id];
+      return next;
+    });
   }
 
   async function deleteTeacher() {
@@ -141,9 +185,34 @@ export function TeachersClient({
             </tr>
           </thead>
           <tbody>
-            {profiles.map((p) => (
+            {profiles.map((p) => {
+              const draft = nameDrafts[p.id] ?? p.name;
+              const changed = draft.trim() !== p.name && draft.trim() !== "";
+              return (
               <tr key={p.id} className="border-b border-slate-50">
-                <td className="px-4 py-2.5 font-medium text-slate-800">{p.name}</td>
+                <td className="px-4 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={draft}
+                      onChange={(e) =>
+                        setNameDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                      }
+                      className="w-28 rounded-lg border border-slate-300 px-2 py-1 text-sm font-medium text-slate-800"
+                    />
+                    {changed && (
+                      <button
+                        onClick={() => saveName(p)}
+                        disabled={nameSavingId === p.id}
+                        className="rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        저장
+                      </button>
+                    )}
+                  </div>
+                  {nameError[p.id] && (
+                    <p className="mt-1 text-xs text-red-600">{nameError[p.id]}</p>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-slate-500">
                   {p.role === "admin" ? p.email : "성함 + 4자리 비밀번호"}
                 </td>
@@ -197,7 +266,8 @@ export function TeachersClient({
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
