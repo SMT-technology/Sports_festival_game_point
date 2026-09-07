@@ -3,5 +3,5 @@ import { ChangePasswordForm } from "./ChangePasswordForm";
 
 export default async function ChangePasswordPage() {
   const profile = await requireProfile();
-  return <ChangePasswordForm required={profile.must_change_password} />;
+  return <ChangePasswordForm required={profile.must_change_password} role={profile.role} />;
 }

@@ -3,9 +3,12 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { isValidPin, pinToTeacherPassword } from "@/lib/teacherAuth";
+import type { Role } from "@/lib/database.types";
 
-export function ChangePasswordForm({ required }: { required: boolean }) {
+export function ChangePasswordForm({ required, role }: { required: boolean; role: Role }) {
   const router = useRouter();
+  const isTeacher = role === "teacher";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +18,12 @@ export function ChangePasswordForm({ required }: { required: boolean }) {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
+    if (isTeacher) {
+      if (!isValidPin(password)) {
+        setError("비밀번호는 숫자 4자리로 입력하세요.");
+        return;
+      }
+    } else if (password.length < 6) {
       setError("비밀번호는 6자 이상이어야 합니다.");
       return;
     }
@@ -27,7 +35,9 @@ export function ChangePasswordForm({ required }: { required: boolean }) {
     setLoading(true);
     const supabase = createClient();
 
-    const { data, error: updateError } = await supabase.auth.updateUser({ password });
+    const { data, error: updateError } = await supabase.auth.updateUser({
+      password: isTeacher ? pinToTeacherPassword(password) : password,
+    });
     if (updateError) {
       setLoading(false);
       setError("변경 실패: " + updateError.message);
@@ -69,17 +79,22 @@ export function ChangePasswordForm({ required }: { required: boolean }) {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700" htmlFor="password">
-              새 비밀번호
+              새 비밀번호{isTeacher && " (4자리)"}
             </label>
             <input
               id="password"
               type="password"
               required
+              inputMode={isTeacher ? "numeric" : undefined}
+              pattern={isTeacher ? "[0-9]*" : undefined}
+              maxLength={isTeacher ? 4 : undefined}
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="6자 이상"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onChange={(e) =>
+                setPassword(isTeacher ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)
+              }
+              placeholder={isTeacher ? "숫자 4자리" : "6자 이상"}
+              className={`mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${isTeacher ? "tracking-[0.5em]" : ""}`}
             />
           </div>
           <div>
@@ -90,10 +105,15 @@ export function ChangePasswordForm({ required }: { required: boolean }) {
               id="confirm"
               type="password"
               required
+              inputMode={isTeacher ? "numeric" : undefined}
+              pattern={isTeacher ? "[0-9]*" : undefined}
+              maxLength={isTeacher ? 4 : undefined}
               autoComplete="new-password"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onChange={(e) =>
+                setConfirm(isTeacher ? e.target.value.replace(/\D/g, "").slice(0, 4) : e.target.value)
+              }
+              className={`mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${isTeacher ? "tracking-[0.5em]" : ""}`}
             />
           </div>
 

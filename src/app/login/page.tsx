@@ -4,10 +4,13 @@ import { Suspense, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { isValidPin, nameToTeacherEmail, pinToTeacherPassword } from "@/lib/teacherAuth";
 
-function describeAuthError(message: string) {
+function describeAuthError(message: string, role: "teacher" | "admin") {
   if (message.includes("Invalid login credentials")) {
-    return "이메일 또는 비밀번호가 올바르지 않습니다.";
+    return role === "teacher"
+      ? "성함 또는 비밀번호가 올바르지 않습니다."
+      : "이메일 또는 비밀번호가 올바르지 않습니다.";
   }
   if (message.includes("Email not confirmed")) {
     return "이메일 인증이 완료되지 않은 계정입니다. Supabase 대시보드 Authentication > Users에서 해당 계정의 인증 상태를 확인하세요.";
@@ -33,6 +36,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [role, setRole] = useState<"teacher" | "admin">("teacher");
+  const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +46,32 @@ function LoginForm() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    let loginEmail: string;
+    let loginPassword: string;
+    if (role === "teacher") {
+      if (!isValidPin(pin)) {
+        setError("비밀번호는 숫자 4자리로 입력하세요.");
+        return;
+      }
+      loginEmail = nameToTeacherEmail(name);
+      loginPassword = pinToTeacherPassword(pin);
+    } else {
+      loginEmail = email;
+      loginPassword = password;
+    }
+
+    setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
 
     setLoading(false);
 
     if (error) {
-      setError(describeAuthError(error.message));
+      setError(describeAuthError(error.message, role));
       return;
     }
 
@@ -104,34 +126,72 @@ function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700" htmlFor="email">
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700" htmlFor="password">
-              비밀번호
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+          {role === "teacher" ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700" htmlFor="name">
+                  성함
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700" htmlFor="pin">
+                  비밀번호 (4자리)
+                </label>
+                <input
+                  id="pin"
+                  type="password"
+                  required
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  autoComplete="current-password"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm tracking-[0.5em] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700" htmlFor="email">
+                  이메일
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700" htmlFor="password">
+                  비밀번호
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

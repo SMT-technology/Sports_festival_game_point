@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/adminGuard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DEFAULT_TEACHER_PIN, pinToTeacherPassword } from "@/lib/teacherAuth";
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireAdminApi();
@@ -18,21 +19,19 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   return NextResponse.json({ ok: true });
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireAdminApi();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;
-  const { password } = (await request.json()) as { password?: string };
-  if (!password || password.length < 6) {
-    return NextResponse.json({ error: "비밀번호는 6자 이상이어야 합니다." }, { status: 400 });
-  }
 
+  // 항상 초기 비밀번호(4자리)로 되돌린다 — 교사가 다음 로그인 때 본인이 새로 설정해야 함
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(id, { password });
+  const { error } = await admin.auth.admin.updateUserById(id, {
+    password: pinToTeacherPassword(DEFAULT_TEACHER_PIN),
+  });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // 관리자가 임시 비밀번호로 재설정했으므로, 다음 로그인 때 본인이 다시 바꾸도록 강제
   await admin.from("profiles").update({ must_change_password: true }).eq("id", id);
 
   return NextResponse.json({ ok: true });

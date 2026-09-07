@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DEFAULT_TEACHER_PIN, nameToTeacherEmail } from "@/lib/teacherAuth";
 
 export function TeachersClient({
   currentUserId,
@@ -15,13 +16,14 @@ export function TeachersClient({
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [resetBusyId, setResetBusyId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "" });
   const [formError, setFormError] = useState<string | null>(null);
 
   async function createTeacher() {
     setFormError(null);
-    if (!form.name || !form.email || !form.password) {
-      setFormError("모든 항목을 입력하세요.");
+    if (!form.name.trim()) {
+      setFormError("이름을 입력하세요.");
       return;
     }
     setBusy(true);
@@ -40,14 +42,14 @@ export function TeachersClient({
       ...prev,
       {
         id: body.id,
-        email: form.email,
-        name: form.name,
+        email: nameToTeacherEmail(form.name),
+        name: form.name.trim(),
         role: "teacher",
         must_change_password: true,
         created_at: new Date().toISOString(),
       },
     ]);
-    setForm({ name: "", email: "", password: "" });
+    setForm({ name: "" });
   }
 
   async function toggleRole(p: Profile) {
@@ -68,16 +70,14 @@ export function TeachersClient({
   }
 
   async function resetPassword(p: Profile) {
-    const password = prompt(`${p.name} 님에게 발급할 임시 비밀번호를 입력하세요 (6자 이상)`);
-    if (!password) return;
-    const res = await fetch(`/api/admin/teachers/${p.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
+    if (!confirm(`${p.name} 님의 비밀번호를 초기값(${DEFAULT_TEACHER_PIN})으로 되돌리시겠습니까?`))
+      return;
+    setResetBusyId(p.id);
+    const res = await fetch(`/api/admin/teachers/${p.id}`, { method: "PATCH" });
     const body = await res.json();
+    setResetBusyId(null);
     if (!res.ok) alert("변경 실패: " + body.error);
-    else alert("임시 비밀번호로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.");
+    else alert(`초기 비밀번호(${DEFAULT_TEACHER_PIN})로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.`);
   }
 
   async function deleteTeacher() {
@@ -99,9 +99,11 @@ export function TeachersClient({
       <div>
         <h1 className="text-lg font-bold text-slate-900">👩‍🏫 교사 계정 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          계정을 만들면 별도 배정 없이 모든 학년·종목에 바로 점수를 입력할 수 있어요. 여기서
-          정한 비밀번호는 임시 비밀번호이며, 교사가 최초 로그인하면 본인이 직접 새 비밀번호로
-          바꿔야 합니다. 관리자는 그 이후 비밀번호를 볼 수 없고, 필요시 재설정만 할 수 있어요.
+          계정을 만들면 별도 배정 없이 모든 학년·종목에 바로 점수를 입력할 수 있어요. 교사
+          로그인은 이메일이 아니라 <b>성함 + 4자리 비밀번호</b>로 이뤄져요. 이름만 입력하면
+          초기 비밀번호 <b>{DEFAULT_TEACHER_PIN}</b>으로 계정이 만들어지고, 교사가 최초
+          로그인하면 본인이 직접 새 4자리 비밀번호로 바꿔야 합니다. 이름이 같은 교사가 이미
+          있으면 &ldquo;김민수(2반)&rdquo;처럼 구분해서 등록해주세요.
         </p>
       </div>
 
@@ -112,27 +114,9 @@ export function TeachersClient({
             <label className="block text-xs text-slate-500">이름</label>
             <input
               value={form.name}
-              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-              className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500">이메일</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-              className="mt-1 w-56 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500">임시 비밀번호</label>
-            <input
-              type="text"
-              value={form.password}
-              onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
-              className="mt-1 w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-              placeholder="6자 이상"
+              onChange={(e) => setForm({ name: e.target.value })}
+              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+              placeholder="예: 김민수"
             />
           </div>
           <button
@@ -140,7 +124,7 @@ export function TeachersClient({
             disabled={busy}
             className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            계정 생성
+            계정 생성 (초기 비밀번호 {DEFAULT_TEACHER_PIN})
           </button>
         </div>
         {formError && <p className="mt-2 text-xs text-red-600">{formError}</p>}
@@ -151,7 +135,7 @@ export function TeachersClient({
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-400">
               <th className="px-4 py-2">이름</th>
-              <th className="px-4 py-2">이메일</th>
+              <th className="px-4 py-2">로그인 방식</th>
               <th className="px-4 py-2">권한</th>
               <th className="px-4 py-2 text-right">관리</th>
             </tr>
@@ -160,7 +144,9 @@ export function TeachersClient({
             {profiles.map((p) => (
               <tr key={p.id} className="border-b border-slate-50">
                 <td className="px-4 py-2.5 font-medium text-slate-800">{p.name}</td>
-                <td className="px-4 py-2.5 text-slate-500">{p.email}</td>
+                <td className="px-4 py-2.5 text-slate-500">
+                  {p.role === "admin" ? p.email : "성함 + 4자리 비밀번호"}
+                </td>
                 <td className="px-4 py-2.5">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -182,16 +168,24 @@ export function TeachersClient({
                       <>
                         <button
                           onClick={() => toggleRole(p)}
+                          title={
+                            p.role === "teacher"
+                              ? "주의: 성함+비밀번호로 만든 교사 계정은 실제 이메일을 모르므로, 승격해도 이메일로 로그인할 수 없어요."
+                              : undefined
+                          }
                           className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
                         >
                           {p.role === "admin" ? "교사로 변경" : "관리자로 승격"}
                         </button>
-                        <button
-                          onClick={() => resetPassword(p)}
-                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                        >
-                          🔄 비밀번호 초기화
-                        </button>
+                        {p.role === "teacher" && (
+                          <button
+                            onClick={() => resetPassword(p)}
+                            disabled={resetBusyId === p.id}
+                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                          >
+                            🔄 비밀번호 초기화
+                          </button>
+                        )}
                         <button
                           onClick={() => setDeleteTarget(p)}
                           className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
