@@ -1,6 +1,11 @@
 export type Role = "teacher" | "admin";
 export type EventCategory = "field" | "gym" | "minigame";
-export type ScoringType = "rank" | "pass_fail" | "direct";
+export type ScoringType = "rank" | "pass_fail" | "direct" | "tier";
+
+export interface TierOption {
+  label: string;
+  points: number;
+}
 export type ScoreStatus = "draft" | "final";
 
 export interface Profile {
@@ -31,6 +36,7 @@ export interface EventRow {
   is_active: boolean;
   is_locked: boolean;
   grades: number[];
+  tier_options: TierOption[];
   created_at: string;
 }
 
@@ -48,6 +54,7 @@ export interface ScoreRow {
   rank_value: number | null;
   pass_value: boolean | null;
   direct_value: number | null;
+  tier_index: number | null;
   bonus_points: number;
   computed_points: number;
   status: ScoreStatus;
@@ -73,7 +80,16 @@ export interface ScoreAuditLog {
 export interface AppSettings {
   id: number;
   rankings_visible: boolean;
+  cheer_results_visible: boolean;
   updated_at: string;
+}
+
+export interface CheerAward {
+  id: string;
+  class_id: string;
+  points: number;
+  awarded_by: string | null;
+  awarded_at: string;
 }
 
 export interface Database {
@@ -131,6 +147,12 @@ export interface Database {
         Row: AppSettings;
         Insert: Partial<AppSettings>;
         Update: Partial<AppSettings>;
+        Relationships: [];
+      };
+      cheer_awards: {
+        Row: CheerAward;
+        Insert: Partial<CheerAward> & { class_id: string; points: number };
+        Update: Partial<CheerAward>;
         Relationships: [];
       };
     };

@@ -12,14 +12,14 @@ interface RowState {
   rank: number | null;
   pass: boolean | null;
   direct: number | null;
-  bonus: number | null;
+  tier: number | null;
   status: "empty" | "draft" | "final";
   saving?: boolean;
   error?: string;
 }
 
 function emptyRow(): RowState {
-  return { rank: null, pass: null, direct: null, bonus: null, status: "empty" };
+  return { rank: null, pass: null, direct: null, tier: null, status: "empty" };
 }
 
 function rowFromScore(score: ScoreRow): RowState {
@@ -28,7 +28,7 @@ function rowFromScore(score: ScoreRow): RowState {
     rank: score.rank_value,
     pass: score.pass_value,
     direct: score.direct_value,
-    bonus: score.bonus_points,
+    tier: score.tier_index,
     status: score.status,
   };
 }
@@ -242,9 +242,6 @@ export function InputClient({
     if (selectedEvent.scoring_type === "rank" && row.rank != null && row.rank < 1) {
       return "1 이상의 순위를 입력하세요.";
     }
-    if (row.bonus != null && (row.bonus < 0 || row.bonus > 20)) {
-      return "응원 추가 점수는 0~20점 범위로 입력하세요.";
-    }
     return null;
   }
 
@@ -253,6 +250,7 @@ export function InputClient({
     if (selectedEvent.scoring_type === "rank") return row.rank != null;
     if (selectedEvent.scoring_type === "pass_fail") return row.pass != null;
     if (selectedEvent.scoring_type === "direct") return row.direct != null;
+    if (selectedEvent.scoring_type === "tier") return row.tier != null;
     return false;
   }
 
@@ -284,7 +282,7 @@ export function InputClient({
           rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
           pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
           direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
-          bonus_points: row.bonus ?? 0,
+          tier_index: selectedEvent.scoring_type === "tier" ? row.tier : null,
           status: "draft",
         },
         { onConflict: "event_id,class_id" },
@@ -325,7 +323,7 @@ export function InputClient({
         rank_value: selectedEvent.scoring_type === "rank" ? row.rank : null,
         pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
         direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
-        bonus_points: row.bonus ?? 0,
+        tier_index: selectedEvent.scoring_type === "tier" ? row.tier : null,
         status: "final" as const,
       };
     });
@@ -454,8 +452,7 @@ export function InputClient({
                     `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
                   {selectedEvent.scoring_type === "direct" &&
                     `직접 입력 (0~${selectedEvent.max_points}점)`}
-                  {" · "}
-                  <span className="text-amber-600">응원 추가점수 0~20점 별도 입력 가능</span>
+                  {selectedEvent.scoring_type === "tier" && "단계별 점수 (선택한 단계로 자동 반영)"}
                 </p>
               </div>
               <button
@@ -546,21 +543,29 @@ export function InputClient({
                           />
                         )}
 
-                        <span className="text-xs font-bold text-amber-500">+</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={20}
-                          placeholder="응원 0~20"
-                          disabled={disabled}
-                          value={row.bonus ?? ""}
-                          onChange={(e) =>
-                            updateRow(c.id, {
-                              bonus: e.target.value === "" ? null : Number(e.target.value),
-                            })
-                          }
-                          className="w-24 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-400"
-                        />
+                        {selectedEvent.scoring_type === "tier" && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedEvent.tier_options.length === 0 && (
+                              <span className="text-xs text-red-500">
+                                관리자가 아직 단계를 설정하지 않았어요
+                              </span>
+                            )}
+                            {selectedEvent.tier_options.map((t, i) => (
+                              <button
+                                key={i}
+                                disabled={disabled}
+                                onClick={() => updateRow(c.id, { tier: i })}
+                                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
+                                  row.tier === i
+                                    ? "border-fuchsia-600 bg-fuchsia-50 text-fuchsia-700"
+                                    : "border-slate-200 text-slate-500"
+                                }`}
+                              >
+                                {t.label || `단계 ${i + 1}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
                         <span className="text-xs text-slate-400">
                           {previewPoints(selectedEvent, row).toFixed(0)}점

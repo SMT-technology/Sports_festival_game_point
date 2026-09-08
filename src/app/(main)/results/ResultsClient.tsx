@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABEL } from "@/lib/scoring";
 import type {
   AppSettings,
+  CheerAward,
   ClassRow,
   EventCategory,
   EventRow,
   Role,
   ScoreRow,
 } from "@/lib/database.types";
+import { CheerAwardsBoard } from "./CheerAwardsBoard";
 import { DetailedTable } from "./DetailedTable";
 import { PodiumBoard } from "./PodiumBoard";
 import { SubmissionMatrix } from "./SubmissionMatrix";
@@ -24,17 +26,23 @@ export function ResultsClient({
   initialEvents,
   initialScores,
   initialRankingsVisible,
+  initialCheerResultsVisible,
+  cheerAwards,
 }: {
   role: Role;
   initialClasses: ClassRow[];
   initialEvents: EventRow[];
   initialScores: ScoreRow[];
   initialRankingsVisible: boolean;
+  initialCheerResultsVisible: boolean;
+  cheerAwards: CheerAward[];
 }) {
   const [scores, setScores] = useState<ScoreRow[]>(initialScores);
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
   const [rankingsVisible, setRankingsVisible] = useState(initialRankingsVisible);
   const [rankingsBusy, setRankingsBusy] = useState(false);
+  const [cheerResultsVisible, setCheerResultsVisible] = useState(initialCheerResultsVisible);
+  const [cheerBusy, setCheerBusy] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [live, setLive] = useState(false);
   const [view, setView] = useState<"detailed" | "podium">("detailed");
@@ -77,6 +85,9 @@ export function ResultsClient({
           const next = payload.new as AppSettings;
           if (typeof next?.rankings_visible === "boolean") {
             setRankingsVisible(next.rankings_visible);
+          }
+          if (typeof next?.cheer_results_visible === "boolean") {
+            setCheerResultsVisible(next.cheer_results_visible);
           }
         },
       )
@@ -141,6 +152,12 @@ export function ResultsClient({
     });
   }, [events, initialClasses, finalScores, eventsById]);
 
+  const cheerTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of cheerAwards) map.set(a.class_id, (map.get(a.class_id) ?? 0) + a.points);
+    return map;
+  }, [cheerAwards]);
+
   const showPodium = role !== "admin" || view === "podium";
 
   async function toggleRankingsVisible() {
@@ -156,6 +173,21 @@ export function ResultsClient({
       return;
     }
     setRankingsVisible((v) => !v);
+  }
+
+  async function toggleCheerVisible() {
+    setCheerBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("app_settings")
+      .update({ cheer_results_visible: !cheerResultsVisible })
+      .eq("id", 1);
+    setCheerBusy(false);
+    if (error) {
+      alert("변경 실패: " + error.message);
+      return;
+    }
+    setCheerResultsVisible((v) => !v);
   }
 
   return (
@@ -182,6 +214,17 @@ export function ResultsClient({
                 }`}
               >
                 {rankingsVisible ? "🙈 순위 숨기기" : "👀 순위 비공개 중 (클릭해서 공개)"}
+              </button>
+              <button
+                onClick={toggleCheerVisible}
+                disabled={cheerBusy}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                  cheerResultsVisible
+                    ? "border-amber-300 bg-amber-50 text-amber-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {cheerResultsVisible ? "🎗️ 응원상 공개 중" : "🎗️ 응원상 비공개 (클릭해서 공개)"}
               </button>
               <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
                 <button
@@ -239,6 +282,17 @@ export function ResultsClient({
 
           <DetailedTable classesByGrade={classesByGrade} classComputed={classComputed} />
         </>
+      )}
+
+      {(role === "admin" || cheerResultsVisible) && (
+        <div className="space-y-1">
+          {role === "admin" && !cheerResultsVisible && (
+            <p className="text-xs text-slate-400">
+              🔒 관리자에게만 보여요 — 교사/학생 화면에는 아직 공개되지 않았습니다.
+            </p>
+          )}
+          <CheerAwardsBoard classesByGrade={classesByGrade} cheerTotals={cheerTotals} />
+        </div>
       )}
     </div>
   );

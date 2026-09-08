@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABEL } from "@/lib/scoring";
-import type { EventCategory, EventRow, ScoringType } from "@/lib/database.types";
+import type { EventCategory, EventRow, ScoringType, TierOption } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
@@ -68,6 +68,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         pass_points: ev.pass_points,
         max_points: ev.max_points,
         grades: ev.grades,
+        tier_options: ev.tier_options,
       })
       .eq("id", ev.id);
 
@@ -134,6 +135,19 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       .filter((n) => !Number.isNaN(n));
     const next = (keys.length ? Math.max(...keys) : 0) + 1;
     patchLocal(ev.id, { point_table: { ...ev.point_table, [next]: 0 } });
+  }
+
+  function addTierOption(ev: EventRow) {
+    patchLocal(ev.id, { tier_options: [...ev.tier_options, { label: "", points: 0 }] });
+  }
+
+  function updateTierOption(ev: EventRow, index: number, patch: Partial<TierOption>) {
+    const next = ev.tier_options.map((t, i) => (i === index ? { ...t, ...patch } : t));
+    patchLocal(ev.id, { tier_options: next });
+  }
+
+  function removeTierOption(ev: EventRow, index: number) {
+    patchLocal(ev.id, { tier_options: ev.tier_options.filter((_, i) => i !== index) });
   }
 
   function handleDragStart(cat: EventCategory, index: number) {
@@ -221,6 +235,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
               <option value="rank">순위 배점</option>
               <option value="pass_fail">통과/실패</option>
               <option value="direct">직접 입력</option>
+              <option value="tier">단계별 점수</option>
             </select>
           </div>
           <div>
@@ -253,9 +268,9 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-400">
-          💡 응원 추가 점수(0~20점)는 별도 종목이 아니라, 모든 종목의 점수 입력 화면에서
-          반별로 함께 입력하도록 바뀌었어요. 따로 &ldquo;응원질서&rdquo; 종목을 추가하지
-          않아도 돼요.
+          💡 응원/질서 점수는 이제 이 화면이 아니라 별도의 &ldquo;🎉 응원점수&rdquo; 메뉴에서
+          반마다 버튼을 눌러 누적으로 지급해요. 여기서는 종목별 순위/통과 점수만 관리하면
+          됩니다.
         </p>
       </div>
 
@@ -316,6 +331,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         <option value="rank">순위 배점</option>
                         <option value="pass_fail">통과/실패</option>
                         <option value="direct">직접 입력</option>
+                        <option value="tier">단계별 점수</option>
                       </select>
                       <div className="flex gap-1" title="대상 학년">
                         {[1, 2, 3].map((g) => (
@@ -420,6 +436,51 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                               className="w-20 rounded-lg border border-slate-300 px-2 py-1"
                             />
                           </label>
+                        )}
+                        {ev.scoring_type === "tier" && (
+                          <div className="space-y-2">
+                            <span className="text-xs text-slate-400">
+                              단계 이름과 점수 (저장을 눌러야 반영됩니다)
+                            </span>
+                            {ev.tier_options.length === 0 && (
+                              <p className="text-xs text-amber-600">
+                                아직 단계가 없어요. &ldquo;+ 단계 추가&rdquo;로 만들어주세요.
+                              </p>
+                            )}
+                            {ev.tier_options.map((t, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <input
+                                  value={t.label}
+                                  onChange={(e) =>
+                                    updateTierOption(ev, i, { label: e.target.value })
+                                  }
+                                  placeholder={`단계 ${i + 1} 이름 (예: 완주)`}
+                                  className="w-48 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                                />
+                                <input
+                                  type="number"
+                                  value={t.points}
+                                  onChange={(e) =>
+                                    updateTierOption(ev, i, { points: Number(e.target.value) })
+                                  }
+                                  className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                                />
+                                <span className="text-xs text-slate-400">점</span>
+                                <button
+                                  onClick={() => removeTierOption(ev, i)}
+                                  className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => addTierOption(ev)}
+                              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                            >
+                              + 단계 추가
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

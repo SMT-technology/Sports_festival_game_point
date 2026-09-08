@@ -30,12 +30,15 @@ export function previewPoints(
     rank?: number | null;
     pass?: boolean | null;
     direct?: number | null;
-    bonus?: number | null;
+    tier?: number | null;
   },
 ): number {
-  let base = 0;
-  if (event.scoring_type === "rank") base = previewRankPoints(event, input.rank ?? null);
-  else if (event.scoring_type === "pass_fail") base = input.pass ? event.pass_points : 0;
-  else if (event.scoring_type === "direct") base = input.direct ?? 0;
-  return base + (input.bonus ?? 0);
+  if (event.scoring_type === "rank") return previewRankPoints(event, input.rank ?? null);
+  if (event.scoring_type === "pass_fail") return input.pass ? event.pass_points : 0;
+  if (event.scoring_type === "direct") return input.direct ?? 0;
+  if (event.scoring_type === "tier") {
+    if (input.tier == null) return 0;
+    return event.tier_options[input.tier]?.points ?? 0;
+  }
+  return 0;
 }
