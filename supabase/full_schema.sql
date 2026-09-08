@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 신도체육한마당 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0019_branding_settings.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0020_timetable_settings.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
@@ -9,16 +9,16 @@
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
 --   실행하면 끝 — 0001~0019를 하나씩 실행할 필요가 없습니다)
--- - 이미 0001~0019 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
+-- - 이미 0001~0020 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
 --   기존처럼 아직 실행 안 한 번호(0001부터 순서대로, 없는 파일만)를 계속
 --   이어서 실행하는 걸 권장합니다. 이 파일은 각 객체를 "있으면 건너뛰고,
 --   없으면 최신 형태로 만드는" 방식으로 작성되어 있어 기존 프로젝트에
 --   다시 실행해도 안전(idempotent)하지만, 0004/0009/0011처럼 과거의
 --   "잘못 들어간 데이터를 정리"하는 단계는 포함하지 않습니다 — 그런 정리는
---   이미 0001~0019를 순서대로 실행하며 끝난 것으로 간주합니다.
--- - 0001~0019 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
+--   이미 0001~0020을 순서대로 실행하며 끝난 것으로 간주합니다.
+-- - 0001~0020 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
 --   대체하는 게 아니라, "새 프로젝트를 한 번에 세팅하기 위한 요약본"입니다.
---   앞으로 새 기능을 추가할 때는 여전히 0020, 0021...처럼 번호를 이어서
+--   앞으로 새 기능을 추가할 때는 여전히 0021, 0022...처럼 번호를 이어서
 --   새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- ============================================================================
 
@@ -289,6 +289,13 @@ begin
     where table_schema = 'public' and table_name = 'app_settings' and column_name = 'logo_url'
   ) then
     alter table public.app_settings add column logo_url text not null default '/logo.jpg';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'app_settings' and column_name = 'timetable_url'
+  ) then
+    alter table public.app_settings add column timetable_url text not null default '/sports-festival-game_TT.png';
   end if;
 end $$;
 

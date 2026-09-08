@@ -11,6 +11,7 @@ export default async function AdminSettingsPage() {
     <SettingsClient
       initialOrgName={settings?.org_name ?? "신도체육한마당"}
       initialLogoUrl={settings?.logo_url ?? "/logo.jpg"}
+      initialTimetableUrl={settings?.timetable_url ?? "/sports-festival-game_TT.png"}
     />
   );
 }

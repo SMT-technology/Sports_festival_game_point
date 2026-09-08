@@ -6,19 +6,23 @@ import { createClient } from "@/lib/supabase/client";
 export function SettingsClient({
   initialOrgName,
   initialLogoUrl,
+  initialTimetableUrl,
 }: {
   initialOrgName: string;
   initialLogoUrl: string;
+  initialTimetableUrl: string;
 }) {
   const [orgName, setOrgName] = useState(initialOrgName);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
+  const [timetableUrl, setTimetableUrl] = useState(initialTimetableUrl);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [timetableImgError, setTimetableImgError] = useState(false);
 
   async function save() {
-    if (!orgName.trim() || !logoUrl.trim()) {
-      setMessage("대회 이름과 로고 이미지 URL을 모두 입력하세요.");
+    if (!orgName.trim() || !logoUrl.trim() || !timetableUrl.trim()) {
+      setMessage("대회 이름, 로고 이미지 URL, 시간표 이미지 URL을 모두 입력하세요.");
       return;
     }
     setSaving(true);
@@ -26,7 +30,11 @@ export function SettingsClient({
     const supabase = createClient();
     const { error } = await supabase
       .from("app_settings")
-      .update({ org_name: orgName.trim(), logo_url: logoUrl.trim() })
+      .update({
+        org_name: orgName.trim(),
+        logo_url: logoUrl.trim(),
+        timetable_url: timetableUrl.trim(),
+      })
       .eq("id", 1);
     setSaving(false);
     if (error) {
@@ -41,9 +49,9 @@ export function SettingsClient({
       <div>
         <h1 className="text-lg font-bold text-slate-900">⚙️ 사이트 설정</h1>
         <p className="mt-1 text-sm text-slate-500">
-          대회 이름과 로고 이미지를 바꿀 수 있어요. 로그인 화면, 상단 메뉴, 브라우저 탭
-          제목까지 전부 여기 값으로 바뀝니다. 다른 학교에서 이 시스템을 재사용할 때 이 화면만
-          바꾸면 돼요.
+          대회 이름, 로고 이미지, 시간표 이미지를 바꿀 수 있어요. 로그인 화면, 상단 메뉴,
+          브라우저 탭 제목, 시간표 팝업까지 전부 여기 값으로 바뀝니다. 다른 학교에서 이
+          시스템을 재사용할 때 이 화면만 바꾸면 돼요.
         </p>
       </div>
 
@@ -74,7 +82,7 @@ export function SettingsClient({
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-medium text-slate-500">미리보기</p>
+          <p className="mb-1 text-xs font-medium text-slate-500">로고 미리보기</p>
           <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">
             {imgError ? (
               <span className="text-xs text-red-500">불러오기 실패</span>
@@ -85,6 +93,40 @@ export function SettingsClient({
                 alt="로고 미리보기"
                 className="h-full w-full object-cover"
                 onError={() => setImgError(true)}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-4">
+          <label className="block text-sm font-medium text-slate-700">시간표 이미지 URL</label>
+          <input
+            value={timetableUrl}
+            onChange={(e) => {
+              setTimetableUrl(e.target.value);
+              setTimetableImgError(false);
+            }}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="https://... 또는 /sports-festival-game_TT.png"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            상단 메뉴 🗓️ 시간표 버튼을 눌렀을 때 뜨는 이미지예요. GitHub 등에 이미지를 올리고
+            그 주소를 붙여넣으세요.
+          </p>
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500">시간표 미리보기</p>
+          <div className="flex max-h-48 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2">
+            {timetableImgError ? (
+              <span className="text-xs text-red-500">불러오기 실패</span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={timetableUrl}
+                alt="시간표 미리보기"
+                className="max-h-44 w-auto object-contain"
+                onError={() => setTimetableImgError(true)}
               />
             )}
           </div>

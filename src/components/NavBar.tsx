@@ -11,21 +11,26 @@ const LINKS = [
   { href: "/results", label: "결과" },
 ];
 
+const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
+
 export function NavBar({
   name,
   role,
   orgName,
   logoUrl,
+  timetableUrl,
 }: {
   name: string;
   role: "teacher" | "admin";
   orgName: string;
   logoUrl: string;
+  timetableUrl?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [timetableError, setTimetableError] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -119,9 +124,10 @@ export function NavBar({
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/sports-festival-game_TT.png"
+            src={timetableError ? DEFAULT_TIMETABLE_URL : timetableUrl || DEFAULT_TIMETABLE_URL}
             alt="학년별 경기 일정표"
             onClick={(e) => e.stopPropagation()}
+            onError={() => setTimetableError(true)}
             className="max-h-[90vh] w-auto rounded-xl bg-white object-contain shadow-2xl"
           />
         </div>
