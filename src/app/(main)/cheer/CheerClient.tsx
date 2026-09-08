@@ -77,16 +77,23 @@ export function CheerClient({
     setGiving(true);
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from("cheer_awards").insert({
-      class_id: giveTarget.id,
-      points: givePoints,
-      awarded_by: userData.user?.id ?? null,
-    });
+    const { data, error } = await supabase
+      .from("cheer_awards")
+      .insert({
+        class_id: giveTarget.id,
+        points: givePoints,
+        awarded_by: userData.user?.id ?? null,
+      })
+      .select()
+      .single();
     setGiving(false);
     if (error) {
       alert("지급 실패: " + error.message);
       return;
     }
+    // 실시간 구독이 돌아올 때까지 기다리지 않고, 지급한 사람 화면에는 바로 반영한다.
+    const newAward = data as CheerAward;
+    setAwards((prev) => (prev.some((a) => a.id === newAward.id) ? prev : [...prev, newAward]));
     setGiveTarget(null);
     setGivePoints(10);
   }
@@ -113,7 +120,11 @@ export function CheerClient({
     if (!confirm("이 지급 기록을 삭제하시겠습니까?")) return;
     const supabase = createClient();
     const { error } = await supabase.from("cheer_awards").delete().eq("id", id);
-    if (error) alert("삭제 실패: " + error.message);
+    if (error) {
+      alert("삭제 실패: " + error.message);
+      return;
+    }
+    setAwards((prev) => prev.filter((a) => a.id !== id));
   }
 
   const historyAwards = historyFor
