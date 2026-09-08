@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABEL, classLabel, previewPoints } from "@/lib/scoring";
 import type {
+  CheerAward,
   ClassRow,
   EventCategory,
   EventRow,
@@ -63,10 +64,13 @@ const GRADE_STYLE: Record<number, { border: string; header: string; badge: strin
 export function AdminScoresClient({
   classes,
   events,
+  initialCheerAwards,
 }: {
   classes: ClassRow[];
   events: EventRow[];
+  initialCheerAwards: CheerAward[];
 }) {
+  const [viewMode, setViewMode] = useState<"event" | "cheer">("event");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(events[0]?.id ?? null);
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [loadedEventId, setLoadedEventId] = useState<string | null>(null);
@@ -80,6 +84,14 @@ export function AdminScoresClient({
   const [bulkFinalizeOpen, setBulkFinalizeOpen] = useState(false);
   const [bulkResetOpen, setBulkResetOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+
+  const [cheerAwards, setCheerAwards] = useState<CheerAward[]>(initialCheerAwards);
+  const [cheerResetTarget, setCheerResetTarget] = useState<{
+    classId: string;
+    className: string;
+  } | null>(null);
+  const [cheerBulkResetOpen, setCheerBulkResetOpen] = useState(false);
+  const [cheerBusy, setCheerBusy] = useState(false);
 
   const selectedEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? null,
@@ -103,6 +115,26 @@ export function AdminScoresClient({
     }
     return map;
   }, [classes, selectedEvent]);
+
+  const allClassesByGrade = useMemo(() => {
+    const map = new Map<number, ClassRow[]>();
+    for (const c of classes) {
+      if (!map.has(c.grade)) map.set(c.grade, []);
+      map.get(c.grade)!.push(c);
+    }
+    return map;
+  }, [classes]);
+
+  const cheerTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of cheerAwards) map.set(a.class_id, (map.get(a.class_id) ?? 0) + a.points);
+    return map;
+  }, [cheerAwards]);
+
+  const cheerResetTargets = useMemo(
+    () => classes.filter((c) => cheerAwards.some((a) => a.class_id === c.id)),
+    [classes, cheerAwards],
+  );
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -254,6 +286,43 @@ export function AdminScoresClient({
     });
   }
 
+  async function resetCheerForClass(classId: string) {
+    setCheerBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("cheer_awards").delete().eq("class_id", classId);
+    setCheerBusy(false);
+    setCheerResetTarget(null);
+    if (error) {
+      alert("초기화 실패: " + error.message);
+      return;
+    }
+    setCheerAwards((prev) => prev.filter((a) => a.class_id !== classId));
+  }
+
+  async function resetAllCheer() {
+    if (cheerResetTargets.length === 0) {
+      setCheerBulkResetOpen(false);
+      return;
+    }
+    setCheerBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("cheer_awards")
+      .delete()
+      .in(
+        "class_id",
+        cheerResetTargets.map((c) => c.id),
+      );
+    setCheerBusy(false);
+    setCheerBulkResetOpen(false);
+    if (error) {
+      alert("전체 초기화 실패: " + error.message);
+      return;
+    }
+    const resetIds = new Set(cheerResetTargets.map((c) => c.id));
+    setCheerAwards((prev) => prev.filter((a) => !resetIds.has(a.class_id)));
+  }
+
   async function openAudit(classId: string) {
     if (!selectedEvent) return;
     setAuditFor(classId);
@@ -289,6 +358,84 @@ export function AdminScoresClient({
         </p>
       </div>
 
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+        <button
+          onClick={() => setViewMode("event")}
+          className={`rounded-md px-4 py-1.5 ${
+            viewMode === "event" ? "bg-white text-blue-700 shadow" : "text-slate-500"
+          }`}
+        >
+          🏷️ 종목별 점수
+        </button>
+        <button
+          onClick={() => setViewMode("cheer")}
+          className={`rounded-md px-4 py-1.5 ${
+            viewMode === "cheer" ? "bg-white text-amber-600 shadow" : "text-slate-500"
+          }`}
+        >
+          🎉 응원·질서 점수
+        </button>
+      </div>
+
+      {viewMode === "cheer" ? (
+        <div className="rounded-xl border border-amber-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-100 px-5 py-4">
+            <div>
+              <h2 className="font-bold text-slate-900">🎉 응원·질서 점수 초기화</h2>
+              <p className="text-xs text-slate-500">
+                반이 지급받은 응원 점수 이력을 전부 삭제해서 0점으로 되돌립니다.
+              </p>
+            </div>
+            <button
+              onClick={() => setCheerBulkResetOpen(true)}
+              disabled={cheerResetTargets.length === 0 || cheerBusy}
+              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+            >
+              🔄 모두 초기화{cheerResetTargets.length > 0 && ` (${cheerResetTargets.length})`}
+            </button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {[...allClassesByGrade.keys()].sort().map((grade) => {
+              const style = GRADE_STYLE[grade];
+              return (
+                <div key={grade} className={`border-l-4 ${style.border}`}>
+                  <div className={`flex items-center gap-2 px-5 py-2 ${style.header}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
+                      {grade}학년
+                    </span>
+                  </div>
+                  {allClassesByGrade.get(grade)!.map((c) => {
+                    const total = cheerTotals.get(c.id) ?? 0;
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm"
+                      >
+                        <span className="w-20 shrink-0 font-medium text-slate-700">
+                          {classLabel(c)}
+                        </span>
+                        <span className="text-lg font-extrabold text-amber-600">{total}점</span>
+                        <div className="ml-auto">
+                          <button
+                            disabled={total === 0 || cheerBusy}
+                            onClick={() =>
+                              setCheerResetTarget({ classId: c.id, className: classLabel(c) })
+                            }
+                            className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                          >
+                            🔄 초기화
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="space-y-3">
         {CATEGORY_ORDER.map((cat) => {
           const list = eventsByCategory.get(cat) ?? [];
@@ -507,6 +654,8 @@ export function AdminScoresClient({
           )}
         </div>
       )}
+        </>
+      )}
 
       {auditFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -572,6 +721,28 @@ export function AdminScoresClient({
         onCancel={() => setBulkResetOpen(false)}
         onConfirm={resetAll}
         loading={bulkSaving}
+      />
+
+      <ConfirmDialog
+        open={!!cheerResetTarget}
+        title={`${cheerResetTarget?.className ?? ""} 응원 점수를 초기화하시겠습니까?`}
+        description="이 반에 지급된 응원 점수 이력이 전부 삭제되어 0점으로 돌아갑니다. 되돌릴 수 없습니다."
+        confirmLabel="초기화"
+        danger
+        onCancel={() => setCheerResetTarget(null)}
+        onConfirm={() => cheerResetTarget && resetCheerForClass(cheerResetTarget.classId)}
+        loading={cheerBusy}
+      />
+
+      <ConfirmDialog
+        open={cheerBulkResetOpen}
+        title="모든 반의 응원 점수를 초기화하시겠습니까?"
+        description={`응원 점수가 있는 ${cheerResetTargets.length}개 반의 지급 이력이 전부 삭제되어 0점으로 돌아갑니다. 되돌릴 수 없습니다.`}
+        confirmLabel="모두 초기화"
+        danger
+        onCancel={() => setCheerBulkResetOpen(false)}
+        onConfirm={resetAllCheer}
+        loading={cheerBusy}
       />
     </div>
   );

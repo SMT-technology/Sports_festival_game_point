@@ -46,7 +46,7 @@ export function NavBar({
             />
             신도체육한마당
           </span>
-          <nav className="flex gap-1">
+          <nav className="flex items-center gap-1">
             {LINKS.map((link) => {
               const active = pathname === link.href || pathname.startsWith(link.href + "/");
               return (
@@ -61,6 +61,12 @@ export function NavBar({
                 </Link>
               );
             })}
+            <button
+              onClick={() => setTimetableOpen(true)}
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              🗓️ 시간표
+            </button>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -92,13 +98,6 @@ export function NavBar({
         </div>
       </div>
     </header>
-
-    <button
-      onClick={() => setTimetableOpen(true)}
-      className="fixed bottom-5 right-5 z-40 flex items-center gap-1.5 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-105 hover:shadow-xl"
-    >
-      🗓️ 시간표
-    </button>
 
     {timetableOpen && (
       <div
