@@ -127,10 +127,13 @@ export function InputClient({
   const grouped = useMemo(() => {
     const map = new Map<EventCategory, EventRow[]>();
     for (const cat of CATEGORY_ORDER) map.set(cat, []);
-    for (const ev of events) map.get(ev.category)?.push(ev);
+    for (const ev of events) {
+      if (selectedGrade && !ev.grades.includes(selectedGrade)) continue;
+      map.get(ev.category)?.push(ev);
+    }
     for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
     return map;
-  }, [events]);
+  }, [events, selectedGrade]);
 
   // 운동장/체육관/신관은 실제로 분리된 카테고리다. 응원 추가 점수는 이제
   // 별도 종목이 아니라, 각 종목의 점수 입력 화면에서 반별로 함께 입력한다
@@ -394,6 +397,11 @@ export function InputClient({
           </div>
 
           <div className="space-y-6">
+            {displayGroups.every((group) => group.events.length === 0) && (
+              <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+                {selectedGrade}학년에 배정된 종목이 아직 없습니다. 관리자에게 문의하세요.
+              </p>
+            )}
             {displayGroups.map((group) => {
               if (group.events.length === 0) return null;
               return (

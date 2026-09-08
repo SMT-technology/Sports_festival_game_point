@@ -65,6 +65,15 @@ export function SubmissionMatrix({
                       <tr key={ev.id} className="border-b border-slate-50 last:border-0">
                         <td className="px-4 py-2 font-medium text-slate-700">{ev.name}</td>
                         {GRADES.map((g) => {
+                          if (!ev.grades.includes(g)) {
+                            return (
+                              <td key={g} className="px-2 py-2 text-center">
+                                <span className="inline-block min-w-[3.5rem] rounded-full px-2 py-0.5 text-slate-300">
+                                  해당없음
+                                </span>
+                              </td>
+                            );
+                          }
                           const done = evMap?.get(g) ?? 0;
                           const total = gradeSize.get(g) ?? 0;
                           const complete = total > 0 && done === total;

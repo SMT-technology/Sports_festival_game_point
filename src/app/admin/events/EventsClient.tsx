@@ -29,8 +29,15 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     name: string;
     category: EventCategory;
     scoring_type: ScoringType;
-  }>({ name: "", category: "field", scoring_type: "rank" });
+    grades: number[];
+  }>({ name: "", category: "field", scoring_type: "rank", grades: [1, 2, 3] });
   const [creating, setCreating] = useState(false);
+
+  function toggleGradeIn(grades: number[], grade: number): number[] {
+    const has = grades.includes(grade);
+    if (has && grades.length === 1) return grades; // 최소 1개 학년은 남겨둠
+    return has ? grades.filter((g) => g !== grade) : [...grades, grade].sort();
+  }
 
   const grouped = useMemo(() => {
     const map = new Map<EventCategory, EventRow[]>();
@@ -60,6 +67,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         point_table: ev.point_table,
         pass_points: ev.pass_points,
         max_points: ev.max_points,
+        grades: ev.grades,
       })
       .eq("id", ev.id);
 
@@ -102,6 +110,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         name: newEvent.name.trim(),
         category: newEvent.category,
         scoring_type: newEvent.scoring_type,
+        grades: newEvent.grades,
         order_index: (grouped.get(newEvent.category)?.length ?? 0) + 1,
       })
       .select()
@@ -112,7 +121,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       return;
     }
     setEvents((prev) => [...prev, data as EventRow]);
-    setNewEvent({ name: "", category: "field", scoring_type: "rank" });
+    setNewEvent({ name: "", category: "field", scoring_type: "rank", grades: [1, 2, 3] });
   }
 
   function updatePointTable(ev: EventRow, rank: number, value: number) {
@@ -161,8 +170,10 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       <div>
         <h1 className="text-lg font-bold text-slate-900">🏷️ 종목 이름 관리</h1>
         <p className="mt-1 text-sm text-slate-500">
-          종목 이름·분류(장소)·채점 방식을 바로 수정할 수 있어요. 왼쪽 ⠿ 을 드래그하면 순서를
-          바꿀 수 있고, 배점표 등 세부 설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
+          종목 이름·분류(장소)·채점 방식·대상 학년을 바로 수정할 수 있어요. 1/2/3 버튼을 눌러
+          이 종목을 하는 학년을 정하세요(여러 학년 선택 가능) — 선택 안 된 학년의 교사에게는
+          입력 화면에 이 종목이 아예 보이지 않아요. 왼쪽 ⠿ 을 드래그하면 순서를 바꿀 수 있고,
+          배점표 등 세부 설정은 &ldquo;고급 설정&rdquo;에서 바꿀 수 있어요.
         </p>
         <p className="mt-1 text-xs text-amber-600">
           ⚠️ 이미 점수가 제출된 종목의 채점 방식을 바꾸면, 저장 시 기존 점수가 새 방식에 맞지
@@ -211,6 +222,27 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
               <option value="pass_fail">통과/실패</option>
               <option value="direct">직접 입력</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500">대상 학년</label>
+            <div className="mt-1 flex gap-1">
+              {[1, 2, 3].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() =>
+                    setNewEvent((s) => ({ ...s, grades: toggleGradeIn(s.grades, g) }))
+                  }
+                  className={`rounded-lg border px-2.5 py-1.5 text-sm font-semibold ${
+                    newEvent.grades.includes(g)
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-300 text-slate-400"
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
           </div>
           <button
             onClick={createEvent}
@@ -285,6 +317,22 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         <option value="pass_fail">통과/실패</option>
                         <option value="direct">직접 입력</option>
                       </select>
+                      <div className="flex gap-1" title="대상 학년">
+                        {[1, 2, 3].map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => patchLocal(ev.id, { grades: toggleGradeIn(ev.grades, g) })}
+                            className={`h-7 w-7 rounded-lg border text-xs font-semibold ${
+                              ev.grades.includes(g)
+                                ? "border-blue-600 bg-blue-600 text-white"
+                                : "border-slate-300 text-slate-400"
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
                       <button
                         onClick={() => saveEvent(ev)}
                         disabled={busyId === ev.id}

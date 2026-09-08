@@ -111,11 +111,14 @@ export function ResultsClient({
   const progress = useMemo(() => {
     return CATEGORY_ORDER.map((cat) => {
       const catEvents = events.filter((e) => e.category === cat);
-      const totalSlots = catEvents.length * initialClasses.length;
+      const totalSlots = catEvents.reduce(
+        (sum, ev) => sum + initialClasses.filter((c) => ev.grades.includes(c.grade)).length,
+        0,
+      );
       const done = finalScores.filter((s) => eventsById.get(s.event_id)?.category === cat).length;
       return { cat, done, totalSlots, events: catEvents.length };
     });
-  }, [events, initialClasses.length, finalScores, eventsById]);
+  }, [events, initialClasses, finalScores, eventsById]);
 
   const showPodium = role !== "admin" || view === "podium";
 

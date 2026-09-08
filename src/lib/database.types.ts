@@ -30,6 +30,7 @@ export interface EventRow {
   order_index: number;
   is_active: boolean;
   is_locked: boolean;
+  grades: number[];
   created_at: string;
 }
 

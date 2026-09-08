@@ -80,11 +80,12 @@ export function AdminScoresClient({
   const classesByGrade = useMemo(() => {
     const map = new Map<number, ClassRow[]>();
     for (const c of classes) {
+      if (selectedEvent && !selectedEvent.grades.includes(c.grade)) continue;
       if (!map.has(c.grade)) map.set(c.grade, []);
       map.get(c.grade)!.push(c);
     }
     return map;
-  }, [classes]);
+  }, [classes, selectedEvent]);
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -281,7 +282,8 @@ export function AdminScoresClient({
                 : "border-slate-200 bg-white text-slate-600"
             }`}
           >
-            {CATEGORY_LABEL[ev.category]} · {ev.name}
+            {CATEGORY_LABEL[ev.category]} · {ev.name}{" "}
+            <span className="text-xs opacity-70">({ev.grades.join(",")}학년)</span>
           </button>
         ))}
       </div>
