@@ -81,6 +81,8 @@ export interface AppSettings {
   id: number;
   rankings_visible: boolean;
   cheer_results_visible: boolean;
+  org_name: string;
+  logo_url: string;
   updated_at: string;
 }
 

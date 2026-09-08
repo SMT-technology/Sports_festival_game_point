@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { getBranding } from "@/lib/settings";
 
-export const metadata: Metadata = {
-  title: "신도체육한마당",
-  description: "신도체육한마당 반대항전 및 단합 미니게임 점수 입력/집계 시스템",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { orgName } = await getBranding();
+  return {
+    title: orgName,
+    description: `${orgName} 반대항전 및 단합 미니게임 점수 입력/집계 시스템`,
+  };
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

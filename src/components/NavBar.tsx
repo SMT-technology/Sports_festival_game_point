@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -15,9 +14,13 @@ const LINKS = [
 export function NavBar({
   name,
   role,
+  orgName,
+  logoUrl,
 }: {
   name: string;
   role: "teacher" | "admin";
+  orgName: string;
+  logoUrl: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,14 +40,15 @@ export function NavBar({
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Image
-              src="/logo.jpg"
-              alt="신도중학교 로고"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt={`${orgName} 로고`}
               width={24}
               height={24}
-              className="rounded-full"
+              className="h-6 w-6 rounded-full object-cover"
             />
-            신도체육한마당
+            {orgName}
           </span>
           <nav className="flex items-center gap-1">
             {LINKS.map((link) => {

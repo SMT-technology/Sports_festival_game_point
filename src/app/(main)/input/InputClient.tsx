@@ -351,7 +351,7 @@ export function InputClient({
   if (events.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-        아직 등록된 종목이 없습니다. 관리자(서민택 선생님)께 문의하세요.
+        아직 등록된 종목이 없습니다. 관리자에게 문의하세요.
       </div>
     );
   }
@@ -617,7 +617,7 @@ export function InputClient({
               ‼️ 주의 ‼️ : 제출 시 수정 불가
             </span>
             <span className="mt-0.5 block text-xs text-slate-500">
-              관리자 (서민택)에게 연락!!
+              관리자에게 연락!!
             </span>
             <span className="mt-3 block">
               입력된 {readyToFinalize.length}개 반의 점수를 한 번에 최종 제출합니다. 결과 화면에
