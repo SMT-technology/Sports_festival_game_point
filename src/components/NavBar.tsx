@@ -25,6 +25,7 @@ export function NavBar({
   const pathname = usePathname();
   const router = useRouter();
   const [timetableOpen, setTimetableOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -42,11 +43,12 @@ export function NavBar({
           <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={logoUrl}
+              src={logoError ? "/logo.jpg" : logoUrl}
               alt={`${orgName} 로고`}
               width={24}
               height={24}
               className="h-6 w-6 rounded-full object-cover"
+              onError={() => setLogoError(true)}
             />
             {orgName}
           </span>

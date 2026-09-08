@@ -41,6 +41,7 @@ function LoginFormInner({ orgName, logoUrl }: { orgName: string; logoUrl: string
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -67,12 +68,15 @@ function LoginFormInner({ orgName, logoUrl }: { orgName: string; logoUrl: string
       password: loginPassword,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setError(describeAuthError(error.message, role));
       return;
     }
+
+    // 로그인 성공 후에는 여기서 로딩을 끄지 않는다 — 다음 화면으로 넘어가기
+    // 전까지 버튼/스피너가 계속 "로그인 중"으로 보여야, 화면 전환 사이에
+    // 아무 반응이 없는 것처럼 보이는 순간이 생기지 않는다.
 
     const fallback = role === "admin" ? "/admin" : "/input";
     const next = searchParams.get("next") || fallback;
@@ -98,7 +102,14 @@ function LoginFormInner({ orgName, logoUrl }: { orgName: string; logoUrl: string
         <div className="flex flex-col items-center text-center">
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full shadow-md ring-4 ring-blue-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt={`${orgName} 로고`} width={80} height={80} className="h-full w-full object-cover" />
+            <img
+              src={logoError ? "/logo.jpg" : logoUrl}
+              alt={`${orgName} 로고`}
+              width={80}
+              height={80}
+              className="h-full w-full object-cover"
+              onError={() => setLogoError(true)}
+            />
           </div>
           <h1 className="mt-3 text-xl font-extrabold text-slate-900">{orgName}</h1>
           <p className="mt-1 text-sm text-slate-500">점수 관리 시스템 🎊</p>

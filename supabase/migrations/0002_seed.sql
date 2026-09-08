@@ -1,5 +1,5 @@
 -- ============================================================================
--- 시드 데이터: 반 목록 + 기본 종목
+-- 시드 데이터: 반 목록
 -- ============================================================================
 
 -- 1학년 1~12반, 2학년 1~12반, 3학년 1~14반
@@ -11,20 +11,12 @@ union all
 select 3, gs from generate_series(1, 14) gs
 on conflict (grade, class_no) do nothing;
 
--- 반대항전 6종목 (순위제: 1위 100 / 2위 80 / 3위 60 / 4위 40 / 5위 20 / 6위 이하 0)
-insert into public.events (name, category, scoring_type, point_table, order_index)
-select '반대항전 ' || gs || '종목', 'relay', 'rank',
-       '{"1":100,"2":80,"3":60,"4":40,"5":20}'::jsonb, gs
-from generate_series(1, 6) gs
-on conflict (name) do nothing;
-
--- 단합 미니게임 7종목 (통과/실패: 통과 20점)
-insert into public.events (name, category, scoring_type, pass_points, order_index)
-select '단합 미니게임 ' || gs, 'minigame', 'pass_fail', 20, 100 + gs
-from generate_series(1, 7) gs
-on conflict (name) do nothing;
-
--- 응원 및 질서 점수 (직접 입력: 0~10점)
-insert into public.events (name, category, scoring_type, max_points, order_index)
-values ('응원 및 질서', 'cheer', 'direct', 10, 200)
-on conflict (name) do nothing;
+-- ============================================================================
+-- (더 이상 없음 — no-op) 예전엔 여기서 기본 종목(반대항전/미니게임/응원)도
+-- category='relay'/'cheer'로 시드했는데, 이후 마이그레이션(0009~0011)에서
+-- category 허용값이 field/gym/minigame으로 바뀌면서 이 값들이 더 이상
+-- 유효하지 않게 됐다. 0001~0019를 처음부터 다시 실행할 때 여기서
+-- "relay"/"cheer" 값으로 종목을 넣으려 하면 이미 바뀐 제약과 충돌해서
+-- 실패하므로 완전히 제거한다. 종목은 이제 관리자 페이지("종목 이름
+-- 관리")에서 직접 추가한다.
+-- ============================================================================

@@ -440,7 +440,8 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         {ev.scoring_type === "tier" && (
                           <div className="space-y-2">
                             <span className="text-xs text-slate-400">
-                              단계 이름과 점수 (저장을 눌러야 반영됩니다)
+                              단계 이름과 점수 (저장을 눌러야 반영됩니다) — 이미 입력된 점수의
+                              순서가 꼬이지 않도록, 삭제는 맨 마지막에 추가한 단계만 가능해요.
                             </span>
                             {ev.tier_options.length === 0 && (
                               <p className="text-xs text-amber-600">
@@ -466,12 +467,14 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                                   className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-xs"
                                 />
                                 <span className="text-xs text-slate-400">점</span>
-                                <button
-                                  onClick={() => removeTierOption(ev, i)}
-                                  className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                                >
-                                  삭제
-                                </button>
+                                {i === ev.tier_options.length - 1 && (
+                                  <button
+                                    onClick={() => removeTierOption(ev, i)}
+                                    className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  >
+                                    삭제
+                                  </button>
+                                )}
                               </div>
                             ))}
                             <button
