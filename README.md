@@ -28,8 +28,11 @@ Next.js (App Router) + Supabase (Postgres, Auth, Realtime). 배포는 Vercel을 
 ### 1. Supabase 프로젝트 생성
 
 1. [supabase.com](https://supabase.com)에서 새 프로젝트를 생성합니다.
-2. `supabase/migrations/0001_schema.sql` → `supabase/migrations/0002_seed.sql` 순서로
-   Supabase 대시보드의 SQL Editor에서 실행합니다. (또는 Supabase CLI로 `supabase db push`)
+2. **완전히 새 프로젝트라면** `supabase/full_schema.sql` 파일 하나만 SQL Editor에
+   붙여넣어 실행하면 됩니다 (0001~0019를 하나씩 실행할 필요 없음).
+   이미 사용 중인 프로젝트에 마이그레이션을 이어서 적용해야 한다면, 기존처럼
+   `supabase/migrations/` 폴더의 `0001_...` → `0002_...` → ... 순서대로 아직 실행하지
+   않은 파일만 이어서 실행하세요. (또는 Supabase CLI로 `supabase db push`)
 3. Project Settings → API 에서 `Project URL`, `anon public key`, `service_role key`를 확인합니다.
 
 ### 2. 환경 변수 설정
