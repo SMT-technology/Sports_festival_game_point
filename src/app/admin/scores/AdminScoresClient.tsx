@@ -5,12 +5,21 @@ import { createClient } from "@/lib/supabase/client";
 import { CATEGORY_LABEL, classLabel, previewPoints } from "@/lib/scoring";
 import type {
   ClassRow,
+  EventCategory,
   EventRow,
   Profile,
   ScoreAuditLog,
   ScoreRow,
 } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
+
+const CATEGORY_STYLE: Record<EventCategory, { emoji: string; border: string; header: string }> = {
+  field: { emoji: "🏃", border: "border-red-300", header: "bg-red-50 text-red-700" },
+  gym: { emoji: "🏀", border: "border-sky-300", header: "bg-sky-50 text-sky-700" },
+  minigame: { emoji: "🏢", border: "border-fuchsia-300", header: "bg-fuchsia-50 text-fuchsia-700" },
+};
 
 interface RowState {
   scoreId?: string;
@@ -76,6 +85,14 @@ export function AdminScoresClient({
     () => events.find((e) => e.id === selectedEventId) ?? null,
     [events, selectedEventId],
   );
+
+  const eventsByCategory = useMemo(() => {
+    const map = new Map<EventCategory, EventRow[]>();
+    for (const cat of CATEGORY_ORDER) map.set(cat, []);
+    for (const ev of events) map.get(ev.category)?.push(ev);
+    for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
+    return map;
+  }, [events]);
 
   const classesByGrade = useMemo(() => {
     const map = new Map<number, ClassRow[]>();
@@ -272,21 +289,35 @@ export function AdminScoresClient({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {events.map((ev) => (
-          <button
-            key={ev.id}
-            onClick={() => setSelectedEventId(ev.id)}
-            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium ${
-              ev.id === selectedEventId
-                ? "border-blue-600 bg-blue-600 text-white"
-                : "border-slate-200 bg-white text-slate-600"
-            }`}
-          >
-            {CATEGORY_LABEL[ev.category]} · {ev.name}{" "}
-            <span className="text-xs opacity-70">({ev.grades.join(",")}학년)</span>
-          </button>
-        ))}
+      <div className="space-y-3">
+        {CATEGORY_ORDER.map((cat) => {
+          const list = eventsByCategory.get(cat) ?? [];
+          if (list.length === 0) return null;
+          const style = CATEGORY_STYLE[cat];
+          return (
+            <div key={cat} className={`overflow-hidden rounded-xl border ${style.border} bg-white`}>
+              <div className={`px-4 py-2 text-sm font-bold ${style.header}`}>
+                {style.emoji} {CATEGORY_LABEL[cat]}
+              </div>
+              <div className="flex flex-wrap gap-2 p-3">
+                {list.map((ev) => (
+                  <button
+                    key={ev.id}
+                    onClick={() => setSelectedEventId(ev.id)}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-medium ${
+                      ev.id === selectedEventId
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {ev.name}{" "}
+                    <span className="text-xs opacity-70">({ev.grades.join(",")}학년)</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {selectedEvent && (
