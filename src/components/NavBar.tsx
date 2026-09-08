@@ -114,7 +114,7 @@ export function NavBar({
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/timetable.png"
+            src="/sports-festival-game_TT.png"
             alt="학년별 경기 일정표"
             onClick={(e) => e.stopPropagation()}
             className="max-h-[90vh] w-auto rounded-xl bg-white object-contain shadow-2xl"
