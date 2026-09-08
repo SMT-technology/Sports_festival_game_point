@@ -70,6 +70,12 @@ export interface ScoreAuditLog {
   changed_at: string;
 }
 
+export interface AppSettings {
+  id: number;
+  rankings_visible: boolean;
+  updated_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -119,6 +125,12 @@ export interface Database {
         Row: ScoreAuditLog;
         Insert: Partial<ScoreAuditLog>;
         Update: Partial<ScoreAuditLog>;
+        Relationships: [];
+      };
+      app_settings: {
+        Row: AppSettings;
+        Insert: Partial<AppSettings>;
+        Update: Partial<AppSettings>;
         Relationships: [];
       };
     };
