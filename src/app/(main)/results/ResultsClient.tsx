@@ -232,11 +232,11 @@ export function ResultsClient({
                 disabled={rankingsBusy}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                   rankingsVisible
-                    ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    : "border-red-200 bg-red-50 text-red-600"
+                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {rankingsVisible ? "🙈 순위 숨기기" : "👀 순위 비공개 중 (클릭해서 공개)"}
+                {rankingsVisible ? "👀 순위 공개 중" : "🙈 순위 비공개 (클릭해서 공개)"}
               </button>
               <button
                 onClick={toggleCheerVisible}
