@@ -198,7 +198,20 @@ export function InputClient({
           filter: `event_id=eq.${selectedEventId}`,
         },
         (payload) => {
-          if (payload.eventType === "DELETE") return;
+          if (payload.eventType === "DELETE") {
+            // 삭제(제출 취소) 이벤트의 payload.old는 기본적으로 id만 들어있어서
+            // class_id로 바로 찾을 수 없다 — 대신 로컬 상태에서 같은 scoreId를
+            // 가진 반을 찾아 빈 상태로 되돌린다. (다른 선생님이 같은 화면을
+            // 보고 있을 때, 취소된 반이 바로 반영되게 하기 위함)
+            const deletedId = (payload.old as { id?: string }).id;
+            if (!deletedId) return;
+            setRows((prev) => {
+              const classId = Object.keys(prev).find((cid) => prev[cid]?.scoreId === deletedId);
+              if (!classId) return prev;
+              return { ...prev, [classId]: emptyRow() };
+            });
+            return;
+          }
           const s = payload.new as ScoreRow;
           setRows((prev) => ({ ...prev, [s.class_id]: rowFromScore(s) }));
         },
