@@ -122,6 +122,9 @@ export function InputClient({
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkCancelOpen, setBulkCancelOpen] = useState(false);
+  const [bulkCancelSaving, setBulkCancelSaving] = useState(false);
+  const [bulkCancelError, setBulkCancelError] = useState<string | null>(null);
   const [historyFor, setHistoryFor] = useState<ClassRow | null>(null);
   const [historyLogs, setHistoryLogs] = useState<ScoreAuditLog[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
@@ -272,6 +275,17 @@ export function InputClient({
     [gradeClasses, rows, selectedEvent],
   );
 
+  // 이 화면에서 "전체 제출 취소"로 되돌릴 수 있는 건, 지금 이 학년에서 내가
+  // 직접 제출한(submittedBy = 나) 반뿐이다. 다른 교사가 제출한 건 여기서
+  // 건드릴 수 없다 (RLS도 동일하게 막혀 있음).
+  const myFinalized = useMemo(
+    () =>
+      gradeClasses.filter(
+        (c) => rows[c.id]?.status === "final" && rows[c.id]?.submittedBy === profile.id,
+      ),
+    [gradeClasses, rows, profile.id],
+  );
+
   async function submitRow(classId: string) {
     if (!selectedEvent) return;
     const row = rows[classId];
@@ -326,6 +340,30 @@ export function InputClient({
       return;
     }
     setRows((prev) => ({ ...prev, [classId]: emptyRow() }));
+  }
+
+  async function cancelAll() {
+    if (myFinalized.length === 0) {
+      setBulkCancelOpen(false);
+      return;
+    }
+    setBulkCancelError(null);
+    setBulkCancelSaving(true);
+    const ids = myFinalized.map((c) => rows[c.id].scoreId as string);
+    const supabase = createClient();
+    const { error } = await supabase.from("scores").delete().in("id", ids);
+    setBulkCancelSaving(false);
+    setBulkCancelOpen(false);
+
+    if (error) {
+      setBulkCancelError("전체 제출 취소 실패: " + error.message);
+      return;
+    }
+    setRows((prev) => {
+      const next = { ...prev };
+      for (const c of myFinalized) next[c.id] = emptyRow();
+      return next;
+    });
   }
 
   async function openHistory(c: ClassRow) {
@@ -509,17 +547,31 @@ export function InputClient({
                   {selectedEvent.scoring_type === "tier" && "단계별 점수 (선택한 단계로 자동 반영)"}
                 </p>
               </div>
-              <button
-                onClick={() => setBulkConfirmOpen(true)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-              >
-                ✅ 전체 최종 제출{readyToFinalize.length > 0 && ` (${readyToFinalize.length}개 반)`}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBulkConfirmOpen(true)}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                >
+                  ✅ 전체 최종 제출{readyToFinalize.length > 0 && ` (${readyToFinalize.length}개 반)`}
+                </button>
+                <button
+                  onClick={() => setBulkCancelOpen(true)}
+                  disabled={myFinalized.length === 0}
+                  className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                >
+                  🗑️ 전체 제출 취소{myFinalized.length > 0 && ` (${myFinalized.length}개 반)`}
+                </button>
+              </div>
             </div>
 
             {bulkError && (
               <p className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-600">
                 {bulkError}
+              </p>
+            )}
+            {bulkCancelError && (
+              <p className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-600">
+                {bulkCancelError}
               </p>
             )}
 
@@ -691,6 +743,17 @@ export function InputClient({
         onCancel={() => setBulkConfirmOpen(false)}
         onConfirm={finalizeAll}
         loading={bulkSaving}
+      />
+
+      <ConfirmDialog
+        open={bulkCancelOpen}
+        title="내가 제출한 점수를 전체 취소할까요?"
+        description={`이 학년에서 내가 최종 제출한 ${myFinalized.length}개 반의 점수가 모두 삭제되고, 다시 입력할 수 있는 상태로 돌아갑니다. (다른 선생님이 제출한 반은 여기서 취소되지 않습니다)`}
+        confirmLabel="전체 제출 취소"
+        danger
+        onCancel={() => setBulkCancelOpen(false)}
+        onConfirm={cancelAll}
+        loading={bulkCancelSaving}
       />
 
       {historyFor && (
