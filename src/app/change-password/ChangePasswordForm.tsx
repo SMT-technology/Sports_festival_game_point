@@ -79,7 +79,7 @@ export function ChangePasswordForm({ required, role }: { required: boolean; role
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700" htmlFor="password">
-              새 비밀번호{isTeacher && " (4자리)"}
+              새 비밀번호{isTeacher && " (숫자 4자리)"}
             </label>
             <input
               id="password"
@@ -96,6 +96,9 @@ export function ChangePasswordForm({ required, role }: { required: boolean; role
               placeholder={isTeacher ? "숫자 4자리" : "6자 이상"}
               className={`mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${isTeacher ? "tracking-[0.5em]" : ""}`}
             />
+            {isTeacher && (
+              <p className="mt-1 text-xs text-slate-400">숫자만 입력할 수 있어요.</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700" htmlFor="confirm">

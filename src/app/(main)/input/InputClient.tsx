@@ -631,7 +631,7 @@ export function InputClient({
         loading={bulkSaving}
       />
 
-      <p className="text-xs text-slate-400">로그인: {profile.email}</p>
+      <p className="text-xs text-slate-400">로그인: {profile.name}</p>
     </div>
   );
 }
