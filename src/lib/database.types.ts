@@ -70,7 +70,7 @@ export interface ScoreAuditLog {
   score_id: string;
   event_id: string;
   class_id: string;
-  action: "create" | "update" | "final_submit" | "unlock" | "admin_edit";
+  action: "create" | "update" | "final_submit" | "unlock" | "admin_edit" | "delete";
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
   changed_by: string | null;

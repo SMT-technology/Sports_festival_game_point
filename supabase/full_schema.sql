@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 신도체육한마당 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0020_timetable_settings.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0021_cheer_deduction_and_self_cancel.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
@@ -9,16 +9,16 @@
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
 --   실행하면 끝 — 0001~0019를 하나씩 실행할 필요가 없습니다)
--- - 이미 0001~0020 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
+-- - 이미 0001~0021 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
 --   기존처럼 아직 실행 안 한 번호(0001부터 순서대로, 없는 파일만)를 계속
 --   이어서 실행하는 걸 권장합니다. 이 파일은 각 객체를 "있으면 건너뛰고,
 --   없으면 최신 형태로 만드는" 방식으로 작성되어 있어 기존 프로젝트에
 --   다시 실행해도 안전(idempotent)하지만, 0004/0009/0011처럼 과거의
 --   "잘못 들어간 데이터를 정리"하는 단계는 포함하지 않습니다 — 그런 정리는
---   이미 0001~0020을 순서대로 실행하며 끝난 것으로 간주합니다.
--- - 0001~0020 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
+--   이미 0001~0021을 순서대로 실행하며 끝난 것으로 간주합니다.
+-- - 0001~0021 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
 --   대체하는 게 아니라, "새 프로젝트를 한 번에 세팅하기 위한 요약본"입니다.
---   앞으로 새 기능을 추가할 때는 여전히 0021, 0022...처럼 번호를 이어서
+--   앞으로 새 기능을 추가할 때는 여전히 0022, 0023...처럼 번호를 이어서
 --   새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- ============================================================================
 
@@ -305,10 +305,28 @@ end $$;
 create table if not exists public.cheer_awards (
   id uuid primary key default gen_random_uuid(),
   class_id uuid not null references public.classes(id) on delete cascade,
-  points numeric not null check (points >= 0 and points <= 100),
+  points numeric not null check (points >= -100 and points <= 100),
   awarded_by uuid references public.profiles(id) on delete set null,
   awarded_at timestamptz not null default now()
 );
+
+-- 감점(마이너스 지급)도 허용하도록 points 범위를 -100~100으로 정리 (기존 환경 보정용)
+do $$
+declare
+  r record;
+begin
+  for r in
+    select conname from pg_constraint
+    where conrelid = 'public.cheer_awards'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%points%'
+  loop
+    execute format('alter table public.cheer_awards drop constraint %I', r.conname);
+  end loop;
+
+  alter table public.cheer_awards add constraint cheer_awards_points_check
+    check (points >= -100 and points <= 100);
+end $$;
 
 -- ============================================================================
 -- 헬퍼 함수
@@ -448,6 +466,28 @@ create or replace trigger trg_log_score_change
 after insert or update on public.scores
 for each row execute function public.log_score_change();
 
+-- 점수를 삭제(취소)한 기록도 이력에 남긴다 (교사 본인 취소 포함)
+create or replace function public.log_score_delete()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.score_audit_log
+    (score_id, event_id, class_id, action, old_data, new_data, changed_by)
+  values (
+    old.id, old.event_id, old.class_id, 'delete',
+    to_jsonb(old), null,
+    auth.uid()
+  );
+  return old;
+end;
+$$;
+
+create or replace trigger trg_log_score_delete
+after delete on public.scores
+for each row execute function public.log_score_delete();
+
 -- ============================================================================
 -- Row Level Security
 -- ============================================================================
@@ -551,14 +591,22 @@ for update using (
   or (auth.role() = 'authenticated' and not public.event_is_locked(event_id))
 );
 
+-- 교사는 본인이 최종 제출한(submitted_by = 자기 자신) 점수만 취소(삭제)할 수
+-- 있고, 관리자는 지금처럼 아무 점수나 초기화할 수 있다.
 drop policy if exists "scores_delete_admin_only" on public.scores;
-create policy "scores_delete_admin_only" on public.scores
-for delete using (public.is_admin());
+drop policy if exists "scores_delete_admin_or_own" on public.scores;
+create policy "scores_delete_admin_or_own" on public.scores
+for delete using (
+  public.is_admin()
+  or (auth.role() = 'authenticated' and submitted_by = auth.uid())
+);
 
 -- score_audit_log --------------------------------------------------------
+-- 교사도 본인/타인의 점수 변경 이력을 볼 수 있어야 자기 취소 기능을 신뢰할 수 있다.
 drop policy if exists "audit_select_admin_only" on public.score_audit_log;
-create policy "audit_select_admin_only" on public.score_audit_log
-for select using (public.is_admin());
+drop policy if exists "audit_select_authenticated" on public.score_audit_log;
+create policy "audit_select_authenticated" on public.score_audit_log
+for select using (auth.role() = 'authenticated');
 
 -- app_settings -------------------------------------------------------------
 -- 로그인 화면에서 비로그인 상태로도 대회 이름/로고를 봐야 하므로 공개 조회 허용.

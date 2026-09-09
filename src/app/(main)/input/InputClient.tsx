@@ -3,8 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORY_LABEL, classLabel, previewPoints } from "@/lib/scoring";
-import type { ClassRow, EventCategory, EventRow, Profile, ScoreRow } from "@/lib/database.types";
+import { AUDIT_ACTION_LABEL, CATEGORY_LABEL, classLabel, describeScoreSnapshot, previewPoints } from "@/lib/scoring";
+import type {
+  ClassRow,
+  EventCategory,
+  EventRow,
+  Profile,
+  ScoreAuditLog,
+  ScoreRow,
+} from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface RowState {
@@ -14,12 +21,13 @@ interface RowState {
   direct: number | null;
   tier: number | null;
   status: "empty" | "draft" | "final";
+  submittedBy: string | null;
   saving?: boolean;
   error?: string;
 }
 
 function emptyRow(): RowState {
-  return { rank: null, pass: null, direct: null, tier: null, status: "empty" };
+  return { rank: null, pass: null, direct: null, tier: null, status: "empty", submittedBy: null };
 }
 
 function rowFromScore(score: ScoreRow): RowState {
@@ -30,6 +38,7 @@ function rowFromScore(score: ScoreRow): RowState {
     direct: score.direct_value,
     tier: score.tier_index,
     status: score.status,
+    submittedBy: score.submitted_by,
   };
 }
 
@@ -113,6 +122,9 @@ export function InputClient({
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [historyFor, setHistoryFor] = useState<ClassRow | null>(null);
+  const [historyLogs, setHistoryLogs] = useState<ScoreAuditLog[]>([]);
+  const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
 
   const availableGrades = useMemo(
     () => [...new Set(classes.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
@@ -260,11 +272,15 @@ export function InputClient({
     [gradeClasses, rows, selectedEvent],
   );
 
-  async function saveDraft(classId: string) {
+  async function submitRow(classId: string) {
     if (!selectedEvent) return;
     const row = rows[classId];
     if (!row) return;
 
+    if (!hasValue(row)) {
+      updateRow(classId, { error: "점수를 입력하세요." });
+      return;
+    }
     const err = validateRow(row);
     if (err) {
       updateRow(classId, { error: err });
@@ -283,7 +299,7 @@ export function InputClient({
           pass_value: selectedEvent.scoring_type === "pass_fail" ? row.pass : null,
           direct_value: selectedEvent.scoring_type === "direct" ? row.direct : null,
           tier_index: selectedEvent.scoring_type === "tier" ? row.tier : null,
-          status: "draft",
+          status: "final",
         },
         { onConflict: "event_id,class_id" },
       )
@@ -291,10 +307,48 @@ export function InputClient({
       .single();
 
     if (error) {
-      updateRow(classId, { saving: false, error: "저장 실패: " + error.message });
+      updateRow(classId, { saving: false, error: "제출 실패: " + error.message });
       return;
     }
     setRows((prev) => ({ ...prev, [classId]: rowFromScore(data as ScoreRow) }));
+  }
+
+  async function cancelSubmission(classId: string) {
+    const row = rows[classId];
+    if (!row?.scoreId) return;
+    if (!confirm("제출을 취소할까요? 입력된 점수가 삭제되고, 다시 입력할 수 있게 됩니다.")) return;
+
+    updateRow(classId, { saving: true });
+    const supabase = createClient();
+    const { error } = await supabase.from("scores").delete().eq("id", row.scoreId);
+    if (error) {
+      updateRow(classId, { saving: false, error: "취소 실패: " + error.message });
+      return;
+    }
+    setRows((prev) => ({ ...prev, [classId]: emptyRow() }));
+  }
+
+  async function openHistory(c: ClassRow) {
+    if (!selectedEvent) return;
+    setHistoryFor(c);
+    const supabase = createClient();
+    // score_id가 아니라 event_id + class_id 기준으로 조회한다 — 제출 취소로
+    // 기존 행이 삭제되고 새 id로 다시 생성돼도 이전 이력이 계속 보이도록.
+    const { data } = await supabase
+      .from("score_audit_log")
+      .select("*")
+      .eq("event_id", selectedEvent.id)
+      .eq("class_id", c.id)
+      .order("changed_at", { ascending: false });
+    const logs = (data ?? []) as ScoreAuditLog[];
+    setHistoryLogs(logs);
+
+    const ids = [...new Set(logs.map((l) => l.changed_by).filter((x): x is string => !!x))];
+    if (ids.length === 0) return;
+    const { data: people } = await supabase.from("profiles").select("*").in("id", ids);
+    const map: Record<string, Profile> = {};
+    for (const p of (people ?? []) as Profile[]) map[p.id] = p;
+    setProfilesById((prev) => ({ ...prev, ...map }));
   }
 
   async function finalizeAll() {
@@ -580,23 +634,34 @@ export function InputClient({
                             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
                               ✅ 최종 제출 완료
                             </span>
-                            <span className="text-xs text-slate-400">
-                              수정하려면 관리자에게 문의하세요
-                            </span>
+                            <button
+                              onClick={() => openHistory(c)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                            >
+                              이력
+                            </button>
+                            {row.submittedBy === profile.id ? (
+                              <button
+                                disabled={row.saving}
+                                onClick={() => cancelSubmission(c.id)}
+                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                              >
+                                🗑️ 제출 취소
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-400">
+                                수정하려면 관리자에게 문의하세요
+                              </span>
+                            )}
                           </>
                         ) : (
-                          <>
-                            {row.status === "draft" && (
-                              <span className="text-xs text-amber-600">임시저장됨</span>
-                            )}
-                            <button
-                              disabled={disabled}
-                              onClick={() => saveDraft(c.id)}
-                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                            >
-                              임시저장
-                            </button>
-                          </>
+                          <button
+                            disabled={row.saving || !hasValue(row)}
+                            onClick={() => submitRow(c.id)}
+                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40"
+                          >
+                            {row.saving ? "제출 중..." : "제출"}
+                          </button>
                         )}
                       </div>
                     </div>
@@ -613,15 +678,12 @@ export function InputClient({
         title="최종으로 입력을 하시겠습니까?"
         description={
           <>
-            <span className="block text-base font-extrabold text-red-600">
-              ‼️ 주의 ‼️ : 제출 시 수정 불가
-            </span>
-            <span className="mt-0.5 block text-xs text-slate-500">
-              관리자에게 연락!!
-            </span>
             <span className="mt-3 block">
               입력된 {readyToFinalize.length}개 반의 점수를 한 번에 최종 제출합니다. 결과 화면에
               즉시 반영됩니다.
+            </span>
+            <span className="mt-1 block text-xs text-slate-500">
+              내가 제출한 건 나중에 &ldquo;제출 취소&rdquo;로 되돌려 다시 입력할 수 있어요.
             </span>
           </>
         }
@@ -630,6 +692,54 @@ export function InputClient({
         onConfirm={finalizeAll}
         loading={bulkSaving}
       />
+
+      {historyFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900">
+                {classLabel(historyFor)} 변경 이력
+              </h2>
+              <button
+                onClick={() => setHistoryFor(null)}
+                className="text-sm text-slate-400 hover:text-slate-600"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {historyLogs.length === 0 && (
+                <p className="text-sm text-slate-400">기록이 없습니다.</p>
+              )}
+              {historyLogs.map((log) => (
+                <div key={log.id} className="rounded-lg border border-slate-100 p-3 text-xs">
+                  <div className="flex justify-between text-slate-500">
+                    <span className="font-semibold text-slate-700">
+                      {AUDIT_ACTION_LABEL[log.action]}
+                    </span>
+                    <span>{new Date(log.changed_at).toLocaleString("ko-KR")}</span>
+                  </div>
+                  <p className="mt-1 font-medium text-slate-700">
+                    {log.old_data && (
+                      <>
+                        <span className="text-slate-400 line-through">
+                          {describeScoreSnapshot(selectedEvent, log.old_data)}
+                        </span>{" "}
+                        →{" "}
+                      </>
+                    )}
+                    {describeScoreSnapshot(selectedEvent, log.new_data)}
+                  </p>
+                  <p className="mt-1 text-slate-500">
+                    처리자:{" "}
+                    {log.changed_by ? (profilesById[log.changed_by]?.name ?? log.changed_by) : "-"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-slate-400">로그인: {profile.name}</p>
     </div>

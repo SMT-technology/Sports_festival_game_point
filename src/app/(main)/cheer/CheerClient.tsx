@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { classLabel } from "@/lib/scoring";
-import type { CheerAward, ClassRow, Profile, Role } from "@/lib/database.types";
+import type { CheerAward, ClassRow, Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+function signed(points: number): string {
+  return points >= 0 ? `+${points}` : `${points}`;
+}
 
 const GRADE_STYLE: Record<number, { border: string; header: string; badge: string }> = {
   1: { border: "border-blue-400", header: "bg-blue-50", badge: "bg-blue-600 text-white" },
@@ -13,11 +17,9 @@ const GRADE_STYLE: Record<number, { border: string; header: string; badge: strin
 };
 
 export function CheerClient({
-  role,
   initialClasses,
   initialAwards,
 }: {
-  role: Role;
   initialClasses: ClassRow[];
   initialAwards: CheerAward[];
 }) {
@@ -116,17 +118,6 @@ export function CheerClient({
     setProfilesById((prev) => ({ ...prev, ...map }));
   }
 
-  async function deleteAward(id: string) {
-    if (!confirm("이 지급 기록을 삭제하시겠습니까?")) return;
-    const supabase = createClient();
-    const { error } = await supabase.from("cheer_awards").delete().eq("id", id);
-    if (error) {
-      alert("삭제 실패: " + error.message);
-      return;
-    }
-    setAwards((prev) => prev.filter((a) => a.id !== id));
-  }
-
   const historyAwards = historyFor
     ? awards
         .filter((a) => a.class_id === historyFor.id)
@@ -138,8 +129,9 @@ export function CheerClient({
       <div>
         <h1 className="text-lg font-bold text-slate-900">🎉 응원 점수</h1>
         <p className="mt-1 text-sm text-slate-500">
-          반이 열심히 응원·질서를 지킬 때마다 점수를 눌러서 바로 지급하세요. 지급한 점수는
-          누적되고, 종합 순위와는 별도로 응원상으로 따로 집계·시상됩니다.
+          반이 열심히 응원·질서를 지킬 때마다 점수를 눌러서 바로 지급하세요. 반대로 응원·질서를
+          지키지 않으면 마이너스 점수로 감점할 수도 있어요. 지급한 점수는 누적되고, 종합
+          순위와는 별도로 응원상으로 따로 집계·시상됩니다.
         </p>
       </div>
 
@@ -159,7 +151,11 @@ export function CheerClient({
                     <span className="w-20 shrink-0 font-medium text-slate-700">
                       {classLabel(c)}
                     </span>
-                    <span className="text-lg font-extrabold text-amber-600">
+                    <span
+                      className={`text-lg font-extrabold ${
+                        (totalsByClass.get(c.id) ?? 0) < 0 ? "text-red-600" : "text-amber-600"
+                      }`}
+                    >
                       {totalsByClass.get(c.id) ?? 0}점
                     </span>
                     <div className="ml-auto flex shrink-0 gap-2">
@@ -196,15 +192,17 @@ export function CheerClient({
         onConfirm={confirmGive}
         description={
           <div className="space-y-2">
-            <p className="text-xs text-slate-500">0~100점 사이로 입력하세요.</p>
+            <p className="text-xs text-slate-500">
+              -100~100점 사이로 입력하세요. 마이너스 값을 넣으면 감점돼요.
+            </p>
             <input
               type="number"
-              min={0}
+              min={-100}
               max={100}
               autoFocus
               value={givePoints}
               onChange={(e) =>
-                setGivePoints(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
+                setGivePoints(Math.max(-100, Math.min(100, Number(e.target.value) || 0)))
               }
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-bold"
             />
@@ -236,20 +234,14 @@ export function CheerClient({
                   className="flex items-center justify-between rounded-lg border border-slate-100 p-3 text-xs"
                 >
                   <div>
-                    <p className="font-bold text-amber-600">+{a.points}점</p>
+                    <p className={`font-bold ${a.points < 0 ? "text-red-600" : "text-amber-600"}`}>
+                      {signed(a.points)}점
+                    </p>
                     <p className="mt-0.5 text-slate-500">
                       {new Date(a.awarded_at).toLocaleString("ko-KR")} ·{" "}
                       {a.awarded_by ? (profilesById[a.awarded_by]?.name ?? "알 수 없음") : "알 수 없음"}
                     </p>
                   </div>
-                  {role === "admin" && (
-                    <button
-                      onClick={() => deleteAward(a.id)}
-                      className="rounded-lg border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50"
-                    >
-                      삭제
-                    </button>
-                  )}
                 </div>
               ))}
             </div>

@@ -7,6 +7,7 @@ const TABS = [
   { href: "/admin/classes", label: "🏫 반 관리" },
   { href: "/admin/events", label: "🏷️ 종목·배점" },
   { href: "/admin/scores", label: "📊 점수 관리" },
+  { href: "/admin/results", label: "📋 결과 관리" },
   { href: "/admin/teachers", label: "👩‍🏫 교사 계정" },
   { href: "/admin/settings", label: "⚙️ 사이트 설정" },
 ];

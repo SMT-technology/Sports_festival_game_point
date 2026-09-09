@@ -1,11 +1,11 @@
-import { requireProfile } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { sortClasses, sortEvents } from "@/lib/scoring";
 import type { AppSettings, CheerAward, ClassRow, EventRow, ScoreRow } from "@/lib/database.types";
-import { ResultsClient } from "./ResultsClient";
+import { AdminResultsClient } from "./AdminResultsClient";
 
-export default async function ResultsPage() {
-  await requireProfile();
+export default async function AdminResultsPage() {
+  await requireAdmin();
   const supabase = await createClient();
 
   const [
@@ -25,7 +25,7 @@ export default async function ResultsPage() {
   const settings = settingsData as AppSettings | null;
 
   return (
-    <ResultsClient
+    <AdminResultsClient
       initialClasses={sortClasses((classesData ?? []) as ClassRow[])}
       initialEvents={sortEvents((eventsData ?? []) as EventRow[])}
       initialScores={(scoresData ?? []) as ScoreRow[]}
