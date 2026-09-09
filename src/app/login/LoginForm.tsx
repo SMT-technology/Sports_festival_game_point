@@ -78,7 +78,7 @@ function LoginFormInner({ orgName, logoUrl }: { orgName: string; logoUrl: string
     // 전까지 버튼/스피너가 계속 "로그인 중"으로 보여야, 화면 전환 사이에
     // 아무 반응이 없는 것처럼 보이는 순간이 생기지 않는다.
 
-    const fallback = role === "admin" ? "/admin" : "/input";
+    const fallback = role === "admin" ? "/admin/classes" : "/input";
     const next = searchParams.get("next") || fallback;
     router.replace(next);
     router.refresh();

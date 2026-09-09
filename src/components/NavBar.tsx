@@ -6,9 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
-  { href: "/input", label: "입력" },
+  { href: "/input", label: "📝 입력" },
   { href: "/cheer", label: "🎉 응원점수" },
-  { href: "/results", label: "결과" },
+  { href: "/results", label: "🏆 결과" },
 ];
 
 const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
@@ -83,7 +83,7 @@ export function NavBar({
         <div className="flex items-center gap-3">
           {role === "admin" && (
             <Link
-              href="/admin"
+              href="/admin/classes"
               className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-semibold transition ${
                 pathname.startsWith("/admin")
                   ? "bg-orange-500 text-white"
