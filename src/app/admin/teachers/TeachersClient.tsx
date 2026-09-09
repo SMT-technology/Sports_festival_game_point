@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DEFAULT_TEACHER_PIN, isValidPin, nameToTeacherEmail } from "@/lib/teacherAuth";
@@ -22,6 +21,11 @@ export function TeachersClient({
   const [nameError, setNameError] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ name: "" });
   const [formError, setFormError] = useState<string | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Profile | null>(null);
+  const [promoteEmail, setPromoteEmail] = useState("");
+  const [promotePassword, setPromotePassword] = useState("");
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+  const [promoteBusy, setPromoteBusy] = useState(false);
 
   async function createTeacher() {
     setFormError(null);
@@ -55,21 +59,71 @@ export function TeachersClient({
     setForm({ name: "" });
   }
 
-  async function toggleRole(p: Profile) {
-    const nextRole = p.role === "admin" ? "teacher" : "admin";
-    if (
-      !confirm(
-        `${p.name} 님을 ${nextRole === "admin" ? "관리자로 승격" : "교사로 강등"}하시겠습니까?`,
-      )
-    )
-      return;
-    const supabase = createClient();
-    const { error } = await supabase.from("profiles").update({ role: nextRole }).eq("id", p.id);
-    if (error) {
-      alert("권한 변경 실패: " + error.message);
+  function toggleRole(p: Profile) {
+    if (p.role === "admin") {
+      // 관리자 -> 교사: 성함 + 4자리 PIN 로그인으로 되돌리는 것뿐이라 추가
+      // 입력 없이 바로 확인만 받으면 된다.
+      if (!confirm(`${p.name} 님을 교사로 강등하시겠습니까? (로그인 방식이 성함+PIN으로 되돌아갑니다)`))
+        return;
+      demote(p);
       return;
     }
-    setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, role: nextRole } : x)));
+    // 교사 -> 관리자: "관리자로 로그인" 화면에서 쓸 실제 이메일/비밀번호가
+    // 반드시 필요하므로, 확인 대신 입력 모달을 띄운다.
+    setPromoteTarget(p);
+    setPromoteEmail("");
+    setPromotePassword("");
+    setPromoteError(null);
+  }
+
+  async function demote(p: Profile) {
+    setBusy(true);
+    const res = await fetch(`/api/admin/teachers/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "teacher" }),
+    });
+    const body = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      alert("권한 변경 실패: " + body.error);
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((x) =>
+        x.id === p.id ? { ...x, role: "teacher", email: nameToTeacherEmail(x.name) } : x,
+      ),
+    );
+  }
+
+  async function confirmPromote() {
+    if (!promoteTarget) return;
+    const email = promoteEmail.trim();
+    if (!email) {
+      setPromoteError("이메일 주소를 입력하세요.");
+      return;
+    }
+    if (promotePassword.length < 6) {
+      setPromoteError("비밀번호는 6자 이상으로 입력하세요.");
+      return;
+    }
+    setPromoteBusy(true);
+    setPromoteError(null);
+    const res = await fetch(`/api/admin/teachers/${promoteTarget.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "admin", email, password: promotePassword }),
+    });
+    const body = await res.json();
+    setPromoteBusy(false);
+    if (!res.ok) {
+      setPromoteError(body.error ?? "권한 변경 실패");
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((x) => (x.id === promoteTarget.id ? { ...x, role: "admin", email } : x)),
+    );
+    setPromoteTarget(null);
   }
 
   async function resetPassword(p: Profile) {
@@ -237,11 +291,6 @@ export function TeachersClient({
                       <>
                         <button
                           onClick={() => toggleRole(p)}
-                          title={
-                            p.role === "teacher"
-                              ? "주의: 성함+비밀번호로 만든 교사 계정은 실제 이메일을 모르므로, 승격해도 이메일로 로그인할 수 없어요."
-                              : undefined
-                          }
                           className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
                         >
                           {p.role === "admin" ? "교사로 변경" : "관리자로 승격"}
@@ -281,6 +330,47 @@ export function TeachersClient({
         onCancel={() => setDeleteTarget(null)}
         onConfirm={deleteTeacher}
         loading={busy}
+      />
+
+      <ConfirmDialog
+        open={!!promoteTarget}
+        title={`'${promoteTarget?.name}' 님을 관리자로 승격`}
+        description={
+          <div className="space-y-3">
+            <p>
+              관리자는 성함+PIN이 아니라 <b>이메일 + 비밀번호</b>로 로그인해요. 이 계정으로
+              로그인할 실제 이메일과 새 비밀번호를 입력하세요.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">이메일 주소</label>
+              <input
+                type="email"
+                autoFocus
+                value={promoteEmail}
+                onChange={(e) => setPromoteEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                placeholder="admin@school.kr"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500">
+                비밀번호 (6자 이상)
+              </label>
+              <input
+                type="text"
+                value={promotePassword}
+                onChange={(e) => setPromotePassword(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                placeholder="새 비밀번호"
+              />
+            </div>
+            {promoteError && <p className="text-xs text-red-600">{promoteError}</p>}
+          </div>
+        }
+        confirmLabel="승격"
+        onCancel={() => setPromoteTarget(null)}
+        onConfirm={confirmPromote}
+        loading={promoteBusy}
       />
     </div>
   );
