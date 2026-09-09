@@ -1,15 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CATEGORY_LABEL } from "@/lib/scoring";
-import type { CheerAward, ClassRow, EventCategory, EventRow, ScoreRow } from "@/lib/database.types";
+import { groupEventsByLocation } from "@/lib/scoring";
+import type {
+  CheerAward,
+  ClassRow,
+  EventLocation,
+  EventRow,
+  ScoreRow,
+} from "@/lib/database.types";
 import { CheerAwardsBoard } from "@/components/results/CheerAwardsBoard";
 import { DetailedTable } from "@/components/results/DetailedTable";
 import { SubmissionMatrix } from "@/components/results/SubmissionMatrix";
 import { useResultsData } from "@/components/results/useResultsData";
 import type { ClassComputed } from "@/components/results/types";
-
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
 
 export function AdminResultsClient({
   initialClasses,
@@ -18,6 +22,7 @@ export function AdminResultsClient({
   initialRankingsVisible,
   initialCheerResultsVisible,
   cheerAwards,
+  locations,
 }: {
   initialClasses: ClassRow[];
   initialEvents: EventRow[];
@@ -25,6 +30,7 @@ export function AdminResultsClient({
   initialRankingsVisible: boolean;
   initialCheerResultsVisible: boolean;
   cheerAwards: CheerAward[];
+  locations: EventLocation[];
 }) {
   const {
     scores,
@@ -56,11 +62,7 @@ export function AdminResultsClient({
     const map: ClassComputed = new Map();
 
     for (const c of initialClasses) {
-      map.set(c.id, {
-        total: 0,
-        byCategory: { field: 0, gym: 0, minigame: 0 },
-        details: [],
-      });
+      map.set(c.id, { total: 0, details: [] });
     }
 
     for (const s of finalScores) {
@@ -69,7 +71,6 @@ export function AdminResultsClient({
       const entry = map.get(s.class_id);
       if (!entry) continue;
       entry.total += s.computed_points;
-      entry.byCategory[ev.category] += s.computed_points;
       entry.details.push({ event: ev, score: s });
     }
 
@@ -90,17 +91,23 @@ export function AdminResultsClient({
     return map;
   }, [initialClasses, classComputed]);
 
+  const locationGroups = useMemo(
+    () => groupEventsByLocation(events, locations),
+    [events, locations],
+  );
+
   const progress = useMemo(() => {
-    return CATEGORY_ORDER.map((cat) => {
-      const catEvents = events.filter((e) => e.category === cat);
-      const totalSlots = catEvents.reduce(
+    return locationGroups.map((group) => {
+      const totalSlots = group.events.reduce(
         (sum, ev) => sum + initialClasses.filter((c) => ev.grades.includes(c.grade)).length,
         0,
       );
-      const done = finalScores.filter((s) => eventsById.get(s.event_id)?.category === cat).length;
-      return { cat, done, totalSlots, events: catEvents.length };
+      const done = finalScores.filter(
+        (s) => eventsById.get(s.event_id)?.category === group.name,
+      ).length;
+      return { name: group.name, emoji: group.emoji, done, totalSlots, events: group.events.length };
     });
-  }, [events, initialClasses, finalScores, eventsById]);
+  }, [locationGroups, initialClasses, finalScores, eventsById]);
 
   const cheerTotals = useMemo(() => {
     const map = new Map<string, number>();
@@ -169,10 +176,12 @@ export function AdminResultsClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {progress.map((p) => (
-          <div key={p.cat} className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-semibold text-slate-400">{CATEGORY_LABEL[p.cat]}</p>
+          <div key={p.name} className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold text-slate-400">
+              {p.emoji} {p.name}
+            </p>
             <p className="mt-1 text-sm text-slate-700">
               {p.done} / {p.totalSlots}건 제출 · {p.events}개 종목
             </p>
@@ -186,9 +195,14 @@ export function AdminResultsClient({
         ))}
       </div>
 
-      <SubmissionMatrix classes={initialClasses} events={events} finalScores={finalScores} />
+      <SubmissionMatrix
+        classes={initialClasses}
+        events={events}
+        finalScores={finalScores}
+        locations={locations}
+      />
 
-      <DetailedTable classesByGrade={classesByGrade} classComputed={classComputed} />
+      <DetailedTable classesByGrade={classesByGrade} classComputed={classComputed} locations={locations} />
 
       <div className="space-y-1">
         {!cheerResultsVisible && (

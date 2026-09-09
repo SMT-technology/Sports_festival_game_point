@@ -2,21 +2,185 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORY_LABEL } from "@/lib/scoring";
-import type { EventCategory, EventRow, ScoringType, TierOption } from "@/lib/database.types";
+import { groupEventsByLocation, locationStyle, sortLocations } from "@/lib/scoring";
+import type { EventLocation, EventRow, ScoringType, TierOption } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
+const DEFAULT_LOCATION_EMOJI = "📍";
 
-export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
+function CategorySelect({
+  value,
+  locations,
+  onChange,
+  className,
+}: {
+  value: string;
+  locations: EventLocation[];
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const known = locations.some((l) => l.name === value);
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+      {!known && value && <option value={value}>{value} (장소 목록에 없음)</option>}
+      {sortLocations(locations).map((loc) => (
+        <option key={loc.id} value={loc.name}>
+          {loc.emoji} {loc.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function ScoringTypeSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: ScoringType;
+  onChange: (value: ScoringType) => void;
+  className?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as ScoringType)}
+      className={className}
+    >
+      {value === "direct" && <option value="direct">직접 입력 (레거시)</option>}
+      <option value="rank">순위 배점</option>
+      <option value="pass_fail">통과/실패</option>
+      <option value="tier">사용자 설정 점수</option>
+    </select>
+  );
+}
+
+export function EventsClient({
+  initialEvents,
+  initialLocations,
+}: {
+  initialEvents: EventRow[];
+  initialLocations: EventLocation[];
+}) {
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
+  const [locations, setLocations] = useState<EventLocation[]>(initialLocations);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<EventRow | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState<Set<string>>(new Set());
-  const [dragSource, setDragSource] = useState<{ cat: EventCategory; index: number } | null>(
+  const [dragSource, setDragSource] = useState<{ locationName: string; index: number } | null>(
     null,
   );
 
+  // 장소 관리 -----------------------------------------------------------------
+  const [locationDrafts, setLocationDrafts] = useState<
+    Record<string, { name: string; emoji: string }>
+  >({});
+  const [locationBusyId, setLocationBusyId] = useState<string | null>(null);
+  const [locationDeleteTarget, setLocationDeleteTarget] = useState<EventLocation | null>(null);
+  const [newLocation, setNewLocation] = useState({ name: "", emoji: DEFAULT_LOCATION_EMOJI });
+  const [locationCreating, setLocationCreating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  function locationDraft(loc: EventLocation) {
+    return locationDrafts[loc.id] ?? { name: loc.name, emoji: loc.emoji };
+  }
+
+  function setLocationDraft(id: string, patch: Partial<{ name: string; emoji: string }>) {
+    setLocationDrafts((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? locations.find((l) => l.id === id)!), ...patch },
+    }));
+  }
+
+  async function saveLocation(loc: EventLocation) {
+    const draft = locationDraft(loc);
+    if (!draft.name.trim()) return;
+    setLocationBusyId(loc.id);
+    setLocationError(null);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("event_locations")
+      .update({ name: draft.name.trim(), emoji: draft.emoji.trim() || DEFAULT_LOCATION_EMOJI })
+      .eq("id", loc.id);
+    setLocationBusyId(null);
+    if (error) {
+      setLocationError("저장 실패: " + error.message);
+      return;
+    }
+    const renamedFrom = loc.name;
+    const renamedTo = draft.name.trim();
+    setLocations((prev) =>
+      prev.map((l) =>
+        l.id === loc.id ? { ...l, name: renamedTo, emoji: draft.emoji.trim() || DEFAULT_LOCATION_EMOJI } : l,
+      ),
+    );
+    // 이름이 바뀌면, 이미 이 장소를 쓰고 있던 종목들의 category 값도 함께 맞춰준다
+    // (그렇지 않으면 종목들은 예전 이름을 그대로 들고 있어서 목록에서 떨어져 나간다).
+    if (renamedFrom !== renamedTo) {
+      const affected = events.filter((ev) => ev.category === renamedFrom);
+      if (affected.length > 0) {
+        await supabase.from("events").update({ category: renamedTo }).eq("category", renamedFrom);
+        setEvents((prev) =>
+          prev.map((ev) => (ev.category === renamedFrom ? { ...ev, category: renamedTo } : ev)),
+        );
+      }
+    }
+    setLocationDrafts((prev) => {
+      const next = { ...prev };
+      delete next[loc.id];
+      return next;
+    });
+  }
+
+  async function createLocation() {
+    if (!newLocation.name.trim()) return;
+    setLocationCreating(true);
+    setLocationError(null);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("event_locations")
+      .insert({
+        name: newLocation.name.trim(),
+        emoji: newLocation.emoji.trim() || DEFAULT_LOCATION_EMOJI,
+        order_index: locations.length,
+      })
+      .select()
+      .single();
+    setLocationCreating(false);
+    if (error) {
+      setLocationError(
+        error.message.toLowerCase().includes("duplicate")
+          ? "이미 있는 장소 이름이에요."
+          : "추가 실패: " + error.message,
+      );
+      return;
+    }
+    setLocations((prev) => [...prev, data as EventLocation]);
+    setNewLocation({ name: "", emoji: DEFAULT_LOCATION_EMOJI });
+  }
+
+  async function deleteLocation() {
+    if (!locationDeleteTarget) return;
+    setLocationBusyId(locationDeleteTarget.id);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("event_locations")
+      .delete()
+      .eq("id", locationDeleteTarget.id);
+    setLocationBusyId(null);
+    if (error) {
+      setLocationError("삭제 실패: " + error.message);
+      setLocationDeleteTarget(null);
+      return;
+    }
+    setLocations((prev) => prev.filter((l) => l.id !== locationDeleteTarget.id));
+    setLocationDeleteTarget(null);
+  }
+
+  const locationInUseCount = (loc: EventLocation) =>
+    events.filter((ev) => ev.category === loc.name).length;
+
+  // 종목 관리 -------------------------------------------------------------------
   function toggleAdvanced(id: string) {
     setAdvancedOpen((prev) => {
       const next = new Set(prev);
@@ -25,12 +189,13 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       return next;
     });
   }
+
   const [newEvent, setNewEvent] = useState<{
     name: string;
-    category: EventCategory;
+    category: string;
     scoring_type: ScoringType;
     grades: number[];
-  }>({ name: "", category: "field", scoring_type: "rank", grades: [1, 2, 3] });
+  }>({ name: "", category: initialLocations[0]?.name ?? "", scoring_type: "rank", grades: [1, 2, 3] });
   const [creating, setCreating] = useState(false);
 
   function toggleGradeIn(grades: number[], grade: number): number[] {
@@ -39,13 +204,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     return has ? grades.filter((g) => g !== grade) : [...grades, grade].sort();
   }
 
-  const grouped = useMemo(() => {
-    const map = new Map<EventCategory, EventRow[]>();
-    for (const cat of CATEGORY_ORDER) map.set(cat, []);
-    for (const ev of events) map.get(ev.category)?.push(ev);
-    for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
-    return map;
-  }, [events]);
+  const groups = useMemo(() => groupEventsByLocation(events, locations), [events, locations]);
 
   function patchLocal(id: string, patch: Partial<EventRow>) {
     setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -102,9 +261,10 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
   }
 
   async function createEvent() {
-    if (!newEvent.name.trim()) return;
+    if (!newEvent.name.trim() || !newEvent.category.trim()) return;
     setCreating(true);
     const supabase = createClient();
+    const sameLocationCount = events.filter((e) => e.category === newEvent.category).length;
     const { data, error } = await supabase
       .from("events")
       .insert({
@@ -112,7 +272,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         category: newEvent.category,
         scoring_type: newEvent.scoring_type,
         grades: newEvent.grades,
-        order_index: (grouped.get(newEvent.category)?.length ?? 0) + 1,
+        order_index: sameLocationCount + 1,
       })
       .select()
       .single();
@@ -122,7 +282,12 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       return;
     }
     setEvents((prev) => [...prev, data as EventRow]);
-    setNewEvent({ name: "", category: "field", scoring_type: "rank", grades: [1, 2, 3] });
+    setNewEvent({
+      name: "",
+      category: newEvent.category,
+      scoring_type: "rank",
+      grades: [1, 2, 3],
+    });
   }
 
   function updatePointTable(ev: EventRow, rank: number, value: number) {
@@ -150,16 +315,17 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
     patchLocal(ev.id, { tier_options: ev.tier_options.filter((_, i) => i !== index) });
   }
 
-  function handleDragStart(cat: EventCategory, index: number) {
-    setDragSource({ cat, index });
+  function handleDragStart(locationName: string, index: number) {
+    setDragSource({ locationName, index });
   }
 
-  async function handleDrop(cat: EventCategory, index: number) {
+  async function handleDrop(locationName: string, index: number) {
     const source = dragSource;
     setDragSource(null);
-    if (!source || source.cat !== cat || source.index === index) return;
+    if (!source || source.locationName !== locationName || source.index === index) return;
 
-    const list = [...(grouped.get(cat) ?? [])];
+    const group = groups.find((g) => g.name === locationName);
+    const list = [...(group?.events ?? [])];
     const [moved] = list.splice(source.index, 1);
     list.splice(index, 0, moved);
 
@@ -196,6 +362,81 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
       </div>
 
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4">
+        <p className="mb-3 text-sm font-semibold text-slate-700">📍 장소 관리</p>
+        <p className="mb-3 text-xs text-slate-400">
+          여기 있는 장소들이 아래 종목 추가/수정 화면의 &ldquo;분류&rdquo; 선택지가 돼요. 운동장·
+          체육관·본관·신관 외에 원하는 장소를 자유롭게 추가하고, 이모지도 직접 정할 수 있어요.
+        </p>
+        <div className="space-y-2">
+          {sortLocations(locations).map((loc) => {
+            const draft = locationDraft(loc);
+            const changed = draft.name !== loc.name || draft.emoji !== loc.emoji;
+            const inUse = locationInUseCount(loc);
+            return (
+              <div key={loc.id} className="flex flex-wrap items-center gap-2">
+                <input
+                  value={draft.emoji}
+                  onChange={(e) => setLocationDraft(loc.id, { emoji: e.target.value })}
+                  className="w-14 rounded-lg border border-slate-300 px-2 py-1.5 text-center text-sm"
+                />
+                <input
+                  value={draft.name}
+                  onChange={(e) => setLocationDraft(loc.id, { name: e.target.value })}
+                  className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium"
+                />
+                <span className="text-xs text-slate-400">
+                  {inUse > 0 ? `종목 ${inUse}개에서 사용 중` : "사용하는 종목 없음"}
+                </span>
+                {changed && (
+                  <button
+                    onClick={() => saveLocation(loc)}
+                    disabled={locationBusyId === loc.id}
+                    className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                )}
+                <button
+                  onClick={() => setLocationDeleteTarget(loc)}
+                  disabled={locationBusyId === loc.id}
+                  className="ml-auto rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  삭제
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
+          <div>
+            <label className="block text-xs text-slate-500">이모지</label>
+            <input
+              value={newLocation.emoji}
+              onChange={(e) => setNewLocation((s) => ({ ...s, emoji: e.target.value }))}
+              className="mt-1 w-14 rounded-lg border border-slate-300 px-2 py-1.5 text-center text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500">새 장소 이름</label>
+            <input
+              value={newLocation.name}
+              onChange={(e) => setNewLocation((s) => ({ ...s, name: e.target.value }))}
+              placeholder="예: 강당"
+              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            />
+          </div>
+          <button
+            onClick={createLocation}
+            disabled={locationCreating}
+            className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            + 장소 추가
+          </button>
+        </div>
+        {locationError && <p className="mt-2 text-xs text-red-600">{locationError}</p>}
+      </div>
+
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4">
         <p className="mb-3 text-sm font-semibold text-slate-700">새 종목 추가</p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -208,35 +449,21 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500">분류</label>
-            <select
+            <label className="block text-xs text-slate-500">분류(장소)</label>
+            <CategorySelect
               value={newEvent.category}
-              onChange={(e) =>
-                setNewEvent((s) => ({ ...s, category: e.target.value as EventCategory }))
-              }
+              locations={locations}
+              onChange={(category) => setNewEvent((s) => ({ ...s, category }))}
               className="mt-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            >
-              {CATEGORY_ORDER.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABEL[c]}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label className="block text-xs text-slate-500">채점 방식</label>
-            <select
+            <ScoringTypeSelect
               value={newEvent.scoring_type}
-              onChange={(e) =>
-                setNewEvent((s) => ({ ...s, scoring_type: e.target.value as ScoringType }))
-              }
+              onChange={(scoring_type) => setNewEvent((s) => ({ ...s, scoring_type }))}
               className="mt-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            >
-              <option value="rank">순위 배점</option>
-              <option value="pass_fail">통과/실패</option>
-              <option value="direct">직접 입력</option>
-              <option value="tier">단계별 점수</option>
-            </select>
+            />
           </div>
           <div>
             <label className="block text-xs text-slate-500">대상 학년</label>
@@ -261,7 +488,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
           </div>
           <button
             onClick={createEvent}
-            disabled={creating}
+            disabled={creating || !newEvent.category}
             className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
             추가
@@ -274,28 +501,32 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         </p>
       </div>
 
-      {CATEGORY_ORDER.map((cat) => {
-        const list = grouped.get(cat) ?? [];
+      {groups.map((group, groupIndex) => {
+        const list = group.events;
+        const style = locationStyle(groupIndex);
         return (
-          <div key={cat}>
-            <h2 className="mb-2 text-sm font-bold text-slate-700">{CATEGORY_LABEL[cat]}</h2>
+          <div key={group.name}>
+            <h2 className="mb-2 text-sm font-bold text-slate-700">
+              {group.emoji} {group.name}
+            </h2>
             <div className="space-y-3">
               {list.map((ev, index) => {
                 const isOpen = advancedOpen.has(ev.id);
-                const isDragging = dragSource?.cat === cat && dragSource.index === index;
+                const isDragging =
+                  dragSource?.locationName === group.name && dragSource.index === index;
                 return (
                   <div
                     key={ev.id}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => handleDrop(cat, index)}
+                    onDrop={() => handleDrop(group.name, index)}
                     className={`rounded-xl border bg-white p-4 transition ${
-                      isDragging ? "border-blue-400 opacity-50" : "border-slate-200"
+                      isDragging ? "border-blue-400 opacity-50" : `border-slate-200 ${style.border}`
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-3">
                       <span
                         draggable
-                        onDragStart={() => handleDragStart(cat, index)}
+                        onDragStart={() => handleDragStart(group.name, index)}
                         title="드래그해서 순서 변경"
                         className="cursor-grab select-none px-1 text-lg text-slate-300 hover:text-slate-500 active:cursor-grabbing"
                       >
@@ -306,33 +537,17 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
                         onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
                         className="w-56 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
                       />
-                      <select
+                      <CategorySelect
                         value={ev.category}
-                        onChange={(e) =>
-                          patchLocal(ev.id, { category: e.target.value as EventCategory })
-                        }
-                        title="분류(장소)"
+                        locations={locations}
+                        onChange={(category) => patchLocal(ev.id, { category })}
                         className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
-                      >
-                        {CATEGORY_ORDER.map((c) => (
-                          <option key={c} value={c}>
-                            {CATEGORY_LABEL[c]}
-                          </option>
-                        ))}
-                      </select>
-                      <select
+                      />
+                      <ScoringTypeSelect
                         value={ev.scoring_type}
-                        onChange={(e) =>
-                          patchLocal(ev.id, { scoring_type: e.target.value as ScoringType })
-                        }
-                        title="채점 방식"
+                        onChange={(scoring_type) => patchLocal(ev.id, { scoring_type })}
                         className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
-                      >
-                        <option value="rank">순위 배점</option>
-                        <option value="pass_fail">통과/실패</option>
-                        <option value="direct">직접 입력</option>
-                        <option value="tier">단계별 점수</option>
-                      </select>
+                      />
                       <div className="flex gap-1" title="대상 학년">
                         {[1, 2, 3].map((g) => (
                           <button
@@ -507,6 +722,21 @@ export function EventsClient({ initialEvents }: { initialEvents: EventRow[] }) {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={deleteEvent}
         loading={busyId === deleteTarget?.id}
+      />
+
+      <ConfirmDialog
+        open={!!locationDeleteTarget}
+        title={`'${locationDeleteTarget?.name}' 장소를 삭제하시겠습니까?`}
+        description={
+          locationDeleteTarget && locationInUseCount(locationDeleteTarget) > 0
+            ? `이 장소를 쓰는 종목이 ${locationInUseCount(locationDeleteTarget)}개 있어요. 종목의 분류 값 자체는 그대로 남지만, 장소 목록에서는 빠지고 기본 이모지(${DEFAULT_LOCATION_EMOJI})로 표시됩니다.`
+            : "장소 목록에서 삭제됩니다."
+        }
+        confirmLabel="삭제"
+        danger
+        onCancel={() => setLocationDeleteTarget(null)}
+        onConfirm={deleteLocation}
+        loading={!!locationDeleteTarget && locationBusyId === locationDeleteTarget.id}
       />
     </div>
   );

@@ -3,10 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { AUDIT_ACTION_LABEL, CATEGORY_LABEL, classLabel, describeScoreSnapshot, previewPoints } from "@/lib/scoring";
+import {
+  AUDIT_ACTION_LABEL,
+  classLabel,
+  describeScoreSnapshot,
+  groupEventsByLocation,
+  locationStyle,
+  previewPoints,
+} from "@/lib/scoring";
 import type {
   ClassRow,
-  EventCategory,
+  EventLocation,
   EventRow,
   Profile,
   ScoreAuditLog,
@@ -41,8 +48,6 @@ function rowFromScore(score: ScoreRow): RowState {
     submittedBy: score.submitted_by,
   };
 }
-
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
 
 // 학년별 체육복 색상
 const GRADE_UNIFORM: Record<number, string> = {
@@ -107,10 +112,12 @@ export function InputClient({
   profile,
   events,
   classes,
+  locations,
 }: {
   profile: Profile;
   events: EventRow[];
   classes: ClassRow[];
+  locations: EventLocation[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("grade");
@@ -139,46 +146,18 @@ export function InputClient({
     [events, selectedEventId],
   );
 
-  const grouped = useMemo(() => {
-    const map = new Map<EventCategory, EventRow[]>();
-    for (const cat of CATEGORY_ORDER) map.set(cat, []);
-    for (const ev of events) {
-      if (selectedGrade && !ev.grades.includes(selectedGrade)) continue;
-      map.get(ev.category)?.push(ev);
-    }
-    for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
-    return map;
-  }, [events, selectedGrade]);
-
-  // 운동장/체육관/신관은 실제로 분리된 카테고리다. 응원 추가 점수는 이제
-  // 별도 종목이 아니라, 각 종목의 점수 입력 화면에서 반별로 함께 입력한다
-  // (아래 STEP 3 참고).
-  const displayGroups = useMemo(
-    () => [
-      {
-        key: "field",
-        label: CATEGORY_LABEL.field,
-        emoji: "🏃",
-        gradient: "from-red-500 to-orange-500",
-        events: grouped.get("field") ?? [],
-      },
-      {
-        key: "gym",
-        label: CATEGORY_LABEL.gym,
-        emoji: "🏀",
-        gradient: "from-sky-500 to-blue-600",
-        events: grouped.get("gym") ?? [],
-      },
-      {
-        key: "minigame",
-        label: "신관",
-        emoji: "🏢",
-        gradient: "from-fuchsia-500 to-purple-600",
-        events: grouped.get("minigame") ?? [],
-      },
-    ],
-    [grouped],
-  );
+  // 장소(분류)는 관리자가 자유롭게 추가할 수 있으므로, 고정된 3개가 아니라
+  // event_locations 목록 순서대로 동적으로 묶어서 보여준다. 응원 추가 점수는
+  // 별도 종목이 아니라, 각 종목의 점수 입력 화면에서 반별로 함께 입력한다.
+  const displayGroups = useMemo(() => {
+    const eventsForGrade = selectedGrade
+      ? events.filter((ev) => ev.grades.includes(selectedGrade))
+      : events;
+    return groupEventsByLocation(eventsForGrade, locations).map((group, i) => ({
+      ...group,
+      gradient: locationStyle(i).gradient,
+    }));
+  }, [events, selectedGrade, locations]);
 
   const gradeClasses = useMemo(
     () =>
@@ -487,18 +466,17 @@ export function InputClient({
           </div>
 
           <div className="space-y-6">
-            {displayGroups.every((group) => group.events.length === 0) && (
+            {displayGroups.length === 0 && (
               <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
                 {selectedGrade}학년에 배정된 종목이 아직 없습니다. 관리자에게 문의하세요.
               </p>
             )}
             {displayGroups.map((group) => {
-              if (group.events.length === 0) return null;
               return (
-                <div key={group.key}>
+                <div key={group.name}>
                   <p className="mb-2 flex items-center gap-2">
                     <span className="text-3xl">{group.emoji}</span>
-                    <span className="text-2xl font-extrabold text-slate-800">{group.label}</span>
+                    <span className="text-2xl font-extrabold text-slate-800">{group.name}</span>
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {group.events.map((ev) => (
@@ -538,13 +516,14 @@ export function InputClient({
                   {selectedGrade}학년 · {selectedEvent.name}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  {CATEGORY_LABEL[selectedEvent.category]} ·{" "}
+                  {selectedEvent.category} ·{" "}
                   {selectedEvent.scoring_type === "rank" && "순위 입력 (배점표 자동 적용)"}
                   {selectedEvent.scoring_type === "pass_fail" &&
                     `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
                   {selectedEvent.scoring_type === "direct" &&
                     `직접 입력 (0~${selectedEvent.max_points}점)`}
-                  {selectedEvent.scoring_type === "tier" && "단계별 점수 (선택한 단계로 자동 반영)"}
+                  {selectedEvent.scoring_type === "tier" &&
+                    "사용자 설정 점수 (선택한 단계로 자동 반영)"}
                 </p>
               </div>
               <div className="flex items-center gap-2">

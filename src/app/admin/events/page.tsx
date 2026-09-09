@@ -1,10 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
-import { sortEvents } from "@/lib/scoring";
-import type { EventRow } from "@/lib/database.types";
+import { sortEvents, sortLocations } from "@/lib/scoring";
+import type { EventLocation, EventRow } from "@/lib/database.types";
 import { EventsClient } from "./EventsClient";
 
 export default async function AdminEventsPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("events").select("*");
-  return <EventsClient initialEvents={sortEvents((data ?? []) as EventRow[])} />;
+  const [{ data: eventsData }, { data: locationsData }] = await Promise.all([
+    supabase.from("events").select("*"),
+    supabase.from("event_locations").select("*"),
+  ]);
+  return (
+    <EventsClient
+      initialEvents={sortEvents((eventsData ?? []) as EventRow[])}
+      initialLocations={sortLocations((locationsData ?? []) as EventLocation[])}
+    />
+  );
 }

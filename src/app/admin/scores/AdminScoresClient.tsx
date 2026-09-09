@@ -4,29 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUDIT_ACTION_LABEL,
-  CATEGORY_LABEL,
   classLabel,
   describeScoreSnapshot,
+  groupEventsByLocation,
+  locationStyle,
   previewPoints,
 } from "@/lib/scoring";
 import type {
   CheerAward,
   ClassRow,
-  EventCategory,
+  EventLocation,
   EventRow,
   Profile,
   ScoreAuditLog,
   ScoreRow,
 } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
-
-const CATEGORY_STYLE: Record<EventCategory, { emoji: string; border: string; header: string }> = {
-  field: { emoji: "🏃", border: "border-red-300", header: "bg-red-50 text-red-700" },
-  gym: { emoji: "🏀", border: "border-sky-300", header: "bg-sky-50 text-sky-700" },
-  minigame: { emoji: "🏢", border: "border-fuchsia-300", header: "bg-fuchsia-50 text-fuchsia-700" },
-};
 
 interface RowState {
   scoreId?: string;
@@ -63,10 +56,12 @@ export function AdminScoresClient({
   classes,
   events,
   initialCheerAwards,
+  locations,
 }: {
   classes: ClassRow[];
   events: EventRow[];
   initialCheerAwards: CheerAward[];
+  locations: EventLocation[];
 }) {
   const [viewMode, setViewMode] = useState<"event" | "cheer">("event");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(events[0]?.id ?? null);
@@ -96,13 +91,10 @@ export function AdminScoresClient({
     [events, selectedEventId],
   );
 
-  const eventsByCategory = useMemo(() => {
-    const map = new Map<EventCategory, EventRow[]>();
-    for (const cat of CATEGORY_ORDER) map.set(cat, []);
-    for (const ev of events) map.get(ev.category)?.push(ev);
-    for (const list of map.values()) list.sort((a, b) => a.order_index - b.order_index);
-    return map;
-  }, [events]);
+  const locationGroups = useMemo(
+    () => groupEventsByLocation(events, locations),
+    [events, locations],
+  );
 
   const classesByGrade = useMemo(() => {
     const map = new Map<number, ClassRow[]>();
@@ -435,17 +427,15 @@ export function AdminScoresClient({
       ) : (
         <>
       <div className="space-y-3">
-        {CATEGORY_ORDER.map((cat) => {
-          const list = eventsByCategory.get(cat) ?? [];
-          if (list.length === 0) return null;
-          const style = CATEGORY_STYLE[cat];
+        {locationGroups.map((group, i) => {
+          const style = locationStyle(i);
           return (
-            <div key={cat} className={`overflow-hidden rounded-xl border ${style.border} bg-white`}>
+            <div key={group.name} className={`overflow-hidden rounded-xl border ${style.border} bg-white`}>
               <div className={`px-4 py-2 text-sm font-bold ${style.header}`}>
-                {style.emoji} {CATEGORY_LABEL[cat]}
+                {group.emoji} {group.name}
               </div>
               <div className="flex flex-wrap gap-2 p-3">
-                {list.map((ev) => (
+                {group.events.map((ev) => (
                   <button
                     key={ev.id}
                     onClick={() => setSelectedEventId(ev.id)}
@@ -471,13 +461,13 @@ export function AdminScoresClient({
             <div>
               <h2 className="font-bold text-slate-900">{selectedEvent.name}</h2>
               <p className="text-xs text-slate-500">
-                {CATEGORY_LABEL[selectedEvent.category]} ·{" "}
+                {selectedEvent.category} ·{" "}
                 {selectedEvent.scoring_type === "rank" && "순위 입력 (배점표 자동 적용)"}
                 {selectedEvent.scoring_type === "pass_fail" &&
                   `통과/실패 (통과 시 ${selectedEvent.pass_points}점)`}
                 {selectedEvent.scoring_type === "direct" &&
                   `직접 입력 (0~${selectedEvent.max_points}점)`}
-                {selectedEvent.scoring_type === "tier" && "단계별 점수"}
+                {selectedEvent.scoring_type === "tier" && "사용자 설정 점수"}
               </p>
             </div>
             <div className="flex items-center gap-2">

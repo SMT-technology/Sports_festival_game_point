@@ -1,24 +1,24 @@
 -- ============================================================================
 -- 신도체육한마당 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0021_cheer_deduction_and_self_cancel.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0022_event_locations.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
 -- - "완전히 새로운 Supabase 프로젝트"에 처음 설치할 때, 또는 DB를 완전히
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
---   실행하면 끝 — 0001~0019를 하나씩 실행할 필요가 없습니다)
--- - 이미 0001~0021 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
+--   실행하면 끝 — 0001~0022를 하나씩 실행할 필요가 없습니다)
+-- - 이미 0001~0022 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
 --   기존처럼 아직 실행 안 한 번호(0001부터 순서대로, 없는 파일만)를 계속
 --   이어서 실행하는 걸 권장합니다. 이 파일은 각 객체를 "있으면 건너뛰고,
 --   없으면 최신 형태로 만드는" 방식으로 작성되어 있어 기존 프로젝트에
 --   다시 실행해도 안전(idempotent)하지만, 0004/0009/0011처럼 과거의
 --   "잘못 들어간 데이터를 정리"하는 단계는 포함하지 않습니다 — 그런 정리는
---   이미 0001~0021을 순서대로 실행하며 끝난 것으로 간주합니다.
--- - 0001~0021 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
+--   이미 0001~0022을 순서대로 실행하며 끝난 것으로 간주합니다.
+-- - 0001~0022 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
 --   대체하는 게 아니라, "새 프로젝트를 한 번에 세팅하기 위한 요약본"입니다.
---   앞으로 새 기능을 추가할 때는 여전히 0022, 0023...처럼 번호를 이어서
+--   앞으로 새 기능을 추가할 때는 여전히 0023, 0024...처럼 번호를 이어서
 --   새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- ============================================================================
 
@@ -81,7 +81,29 @@ create table if not exists public.classes (
 );
 
 -- ----------------------------------------------------------------------------
--- events: 종목 (운동장 / 체육관 / 단합 미니게임)
+-- event_locations: 종목 분류(장소) 목록 — 관리자가 자유롭게 추가/수정/삭제
+-- ----------------------------------------------------------------------------
+create table if not exists public.event_locations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  emoji text not null default '📍',
+  order_index int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.event_locations drop constraint if exists event_locations_name_not_blank;
+alter table public.event_locations add constraint event_locations_name_not_blank
+  check (length(trim(name)) > 0);
+
+insert into public.event_locations (name, emoji, order_index) values
+  ('운동장', '🏃', 0),
+  ('체육관', '🏀', 1),
+  ('본관', '🏫', 2),
+  ('신관', '🏢', 3)
+on conflict (name) do nothing;
+
+-- ----------------------------------------------------------------------------
+-- events: 종목 (category = event_locations.name과 같은 자유 텍스트 장소명)
 -- ----------------------------------------------------------------------------
 create table if not exists public.events (
   id uuid primary key default gen_random_uuid(),
@@ -97,7 +119,9 @@ create table if not exists public.events (
   created_at timestamptz not null default now()
 );
 
--- category 허용값을 최종 형태(field/gym/minigame)로 정리 (예전 이름이 뭐든 동적으로 찾아 교체)
+-- category는 더 이상 field/gym/minigame 3개로 고정되지 않는다 — 관리자가
+-- event_locations 목록에서 자유롭게 추가한 장소 이름이 그대로 들어간다
+-- (비어있지만 않으면 됨. 예전 이름이 뭐든 동적으로 찾아 제약을 교체)
 do $$
 declare
   r record;
@@ -111,8 +135,8 @@ begin
     execute format('alter table public.events drop constraint %I', r.conname);
   end loop;
 
-  alter table public.events add constraint events_category_check
-    check (category in ('field', 'gym', 'minigame'));
+  alter table public.events add constraint events_category_not_blank
+    check (length(trim(category)) > 0);
 end $$;
 
 -- scoring_type 허용값을 최종 형태(rank/pass_fail/direct/tier)로 정리
@@ -500,6 +524,7 @@ alter table public.scores enable row level security;
 alter table public.score_audit_log enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.cheer_awards enable row level security;
+alter table public.event_locations enable row level security;
 
 -- profiles ---------------------------------------------------------------
 drop policy if exists "profiles_select_self_or_admin" on public.profiles;
@@ -631,6 +656,15 @@ for insert with check (auth.role() = 'authenticated');
 drop policy if exists "cheer_awards_delete_admin_only" on public.cheer_awards;
 create policy "cheer_awards_delete_admin_only" on public.cheer_awards
 for delete using (public.is_admin());
+
+-- event_locations ------------------------------------------------------------
+drop policy if exists "event_locations_select_authenticated" on public.event_locations;
+create policy "event_locations_select_authenticated" on public.event_locations
+for select using (auth.role() = 'authenticated');
+
+drop policy if exists "event_locations_write_admin_only" on public.event_locations;
+create policy "event_locations_write_admin_only" on public.event_locations
+for all using (public.is_admin()) with check (public.is_admin());
 
 -- ============================================================================
 -- Realtime

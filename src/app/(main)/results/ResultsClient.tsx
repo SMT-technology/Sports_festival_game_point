@@ -39,11 +39,7 @@ export function ResultsClient({
     const map: ClassComputed = new Map();
 
     for (const c of initialClasses) {
-      map.set(c.id, {
-        total: 0,
-        byCategory: { field: 0, gym: 0, minigame: 0 },
-        details: [],
-      });
+      map.set(c.id, { total: 0, details: [] });
     }
 
     for (const s of finalScores) {
@@ -52,7 +48,6 @@ export function ResultsClient({
       const entry = map.get(s.class_id);
       if (!entry) continue;
       entry.total += s.computed_points;
-      entry.byCategory[ev.category] += s.computed_points;
       entry.details.push({ event: ev, score: s });
     }
 

@@ -1,5 +1,4 @@
 export type Role = "teacher" | "admin";
-export type EventCategory = "field" | "gym" | "minigame";
 export type ScoringType = "rank" | "pass_fail" | "direct" | "tier";
 
 export interface TierOption {
@@ -27,7 +26,7 @@ export interface ClassRow {
 export interface EventRow {
   id: string;
   name: string;
-  category: EventCategory;
+  category: string;
   scoring_type: ScoringType;
   point_table: Record<string, number>;
   pass_points: number;
@@ -95,6 +94,14 @@ export interface CheerAward {
   awarded_at: string;
 }
 
+export interface EventLocation {
+  id: string;
+  name: string;
+  emoji: string;
+  order_index: number;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -114,7 +121,7 @@ export interface Database {
         Row: EventRow;
         Insert: Partial<EventRow> & {
           name: string;
-          category: EventCategory;
+          category: string;
           scoring_type: ScoringType;
         };
         Update: Partial<EventRow>;
@@ -156,6 +163,12 @@ export interface Database {
         Row: CheerAward;
         Insert: Partial<CheerAward> & { class_id: string; points: number };
         Update: Partial<CheerAward>;
+        Relationships: [];
+      };
+      event_locations: {
+        Row: EventLocation;
+        Insert: Partial<EventLocation> & { name: string };
+        Update: Partial<EventLocation>;
         Relationships: [];
       };
     };

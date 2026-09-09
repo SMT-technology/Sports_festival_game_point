@@ -1,20 +1,21 @@
 "use client";
 
 import { useMemo } from "react";
-import { CATEGORY_LABEL, sortEvents } from "@/lib/scoring";
-import type { ClassRow, EventCategory, EventRow, ScoreRow } from "@/lib/database.types";
+import { groupEventsByLocation } from "@/lib/scoring";
+import type { ClassRow, EventLocation, EventRow, ScoreRow } from "@/lib/database.types";
 
-const CATEGORY_ORDER: EventCategory[] = ["field", "gym", "minigame"];
 const GRADES = [1, 2, 3] as const;
 
 export function SubmissionMatrix({
   classes,
   events,
   finalScores,
+  locations,
 }: {
   classes: ClassRow[];
   events: EventRow[];
   finalScores: ScoreRow[];
+  locations: EventLocation[];
 }) {
   const gradeSize = useMemo(() => {
     const map = new Map<number, number>();
@@ -36,15 +37,16 @@ export function SubmissionMatrix({
     return map;
   }, [classes, finalScores]);
 
+  const groups = useMemo(() => groupEventsByLocation(events, locations), [events, locations]);
+
   return (
     <div className="space-y-4">
-      {CATEGORY_ORDER.map((cat) => {
-        const catEvents = sortEvents(events.filter((e) => e.category === cat));
-        if (catEvents.length === 0) return null;
+      {groups.map((group) => {
+        const catEvents = group.events;
         return (
-          <div key={cat} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div key={group.name} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
-              {CATEGORY_LABEL[cat]} 학년별·종목별 제출 현황
+              {group.emoji} {group.name} 학년별·종목별 제출 현황
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">

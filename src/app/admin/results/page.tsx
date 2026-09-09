@@ -1,7 +1,14 @@
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { sortClasses, sortEvents } from "@/lib/scoring";
-import type { AppSettings, CheerAward, ClassRow, EventRow, ScoreRow } from "@/lib/database.types";
+import { sortClasses, sortEvents, sortLocations } from "@/lib/scoring";
+import type {
+  AppSettings,
+  CheerAward,
+  ClassRow,
+  EventLocation,
+  EventRow,
+  ScoreRow,
+} from "@/lib/database.types";
 import { AdminResultsClient } from "./AdminResultsClient";
 
 export default async function AdminResultsPage() {
@@ -14,12 +21,14 @@ export default async function AdminResultsPage() {
     { data: scoresData },
     { data: settingsData },
     { data: cheerAwardsData },
+    { data: locationsData },
   ] = await Promise.all([
     supabase.from("classes").select("*"),
     supabase.from("events").select("*").eq("is_active", true),
     supabase.from("scores").select("*"),
     supabase.from("app_settings").select("*").eq("id", 1).single(),
     supabase.from("cheer_awards").select("*"),
+    supabase.from("event_locations").select("*"),
   ]);
 
   const settings = settingsData as AppSettings | null;
@@ -32,6 +41,7 @@ export default async function AdminResultsPage() {
       initialRankingsVisible={settings?.rankings_visible ?? true}
       initialCheerResultsVisible={settings?.cheer_results_visible ?? false}
       cheerAwards={(cheerAwardsData ?? []) as CheerAward[]}
+      locations={sortLocations((locationsData ?? []) as EventLocation[])}
     />
   );
 }
