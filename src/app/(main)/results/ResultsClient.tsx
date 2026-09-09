@@ -39,6 +39,7 @@ export function ResultsClient({
 }) {
   const [scores, setScores] = useState<ScoreRow[]>(initialScores);
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
+  const [awards, setAwards] = useState<CheerAward[]>(cheerAwards);
   const [rankingsVisible, setRankingsVisible] = useState(initialRankingsVisible);
   const [rankingsBusy, setRankingsBusy] = useState(false);
   const [cheerResultsVisible, setCheerResultsVisible] = useState(initialCheerResultsVisible);
@@ -46,6 +47,28 @@ export function ResultsClient({
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [live, setLive] = useState(false);
   const [view, setView] = useState<"detailed" | "podium">("detailed");
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refresh() {
+    setRefreshing(true);
+    const supabase = createClient();
+    const [{ data: scoresData }, { data: eventsData }, { data: settingsData }, { data: awardsData }] =
+      await Promise.all([
+        supabase.from("scores").select("*"),
+        supabase.from("events").select("*").eq("is_active", true),
+        supabase.from("app_settings").select("*").eq("id", 1).single(),
+        supabase.from("cheer_awards").select("*"),
+      ]);
+    if (scoresData) setScores(scoresData as ScoreRow[]);
+    if (eventsData) setEvents(eventsData as EventRow[]);
+    if (awardsData) setAwards(awardsData as CheerAward[]);
+    const settings = settingsData as AppSettings | null;
+    if (typeof settings?.rankings_visible === "boolean") setRankingsVisible(settings.rankings_visible);
+    if (typeof settings?.cheer_results_visible === "boolean")
+      setCheerResultsVisible(settings.cheer_results_visible);
+    setLastUpdate(new Date());
+    setRefreshing(false);
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -154,9 +177,9 @@ export function ResultsClient({
 
   const cheerTotals = useMemo(() => {
     const map = new Map<string, number>();
-    for (const a of cheerAwards) map.set(a.class_id, (map.get(a.class_id) ?? 0) + a.points);
+    for (const a of awards) map.set(a.class_id, (map.get(a.class_id) ?? 0) + a.points);
     return map;
-  }, [cheerAwards]);
+  }, [awards]);
 
   const showPodium = role !== "admin" || view === "podium";
 
@@ -246,6 +269,14 @@ export function ResultsClient({
               </div>
             </>
           )}
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
+            {refreshing ? "갱신 중..." : "순위 갱신"}
+          </button>
           <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
             <span className={`h-2 w-2 rounded-full ${live ? "bg-green-500" : "bg-slate-300"}`} />
             {live ? "실시간 연결됨" : "연결 중..."}
