@@ -8,6 +8,52 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const DEFAULT_LOCATION_EMOJI = "📍";
 
+// 장소 이모지는 자유 입력 대신, 학교 시설/체육대회 장소와 어울리는 몇 개만
+// 골라서 그 안에서 고르게 한다 (이모지 키보드를 다 뒤질 필요 없게).
+const LOCATION_EMOJI_OPTIONS = [
+  "🏃", "🏀", "🏫", "🏢", "🏟️", "🏛️", "🎪", "🏠",
+  "🏞️", "⚽", "🏸", "🏊", "🎭", "🎵", "📚", "🍽️",
+  "🚗", "🌳", "🎯", "📍",
+];
+
+function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="이모지 선택"
+        className="flex h-9 w-12 items-center justify-center rounded-lg border border-slate-300 text-lg hover:bg-slate-50"
+      >
+        {value || DEFAULT_LOCATION_EMOJI}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 z-20 mt-1 grid w-56 grid-cols-5 gap-1 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+            {LOCATION_EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  onChange(emoji);
+                  setOpen(false);
+                }}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-lg hover:bg-slate-100 ${
+                  emoji === value ? "bg-blue-50 ring-1 ring-blue-400" : ""
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function CategorySelect({
   value,
   locations,
@@ -374,10 +420,9 @@ export function EventsClient({
             const inUse = locationInUseCount(loc);
             return (
               <div key={loc.id} className="flex flex-wrap items-center gap-2">
-                <input
+                <EmojiPicker
                   value={draft.emoji}
-                  onChange={(e) => setLocationDraft(loc.id, { emoji: e.target.value })}
-                  className="w-14 rounded-lg border border-slate-300 px-2 py-1.5 text-center text-sm"
+                  onChange={(emoji) => setLocationDraft(loc.id, { emoji })}
                 />
                 <input
                   value={draft.name}
@@ -410,11 +455,12 @@ export function EventsClient({
         <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
           <div>
             <label className="block text-xs text-slate-500">이모지</label>
-            <input
-              value={newLocation.emoji}
-              onChange={(e) => setNewLocation((s) => ({ ...s, emoji: e.target.value }))}
-              className="mt-1 w-14 rounded-lg border border-slate-300 px-2 py-1.5 text-center text-sm"
-            />
+            <div className="mt-1">
+              <EmojiPicker
+                value={newLocation.emoji}
+                onChange={(emoji) => setNewLocation((s) => ({ ...s, emoji }))}
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs text-slate-500">새 장소 이름</label>
