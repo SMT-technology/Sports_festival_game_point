@@ -70,7 +70,10 @@ export function AdminScoresClient({
   const loading = selectedEventId !== null && loadedEventId !== selectedEventId;
   const [auditFor, setAuditFor] = useState<string | null>(null);
   const [auditLogs, setAuditLogs] = useState<ScoreAuditLog[]>([]);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const [live, setLive] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [resetTarget, setResetTarget] = useState<{ classId: string; className: string } | null>(
     null,
   );
@@ -142,10 +145,86 @@ export function AdminScoresClient({
         setRows(next);
         setLoadedEventId(selectedEventId);
       });
+
+    // 교사가 입력 탭에서 직접 제출/취소할 때 이 화면도 새로고침 없이 바로
+    // 반영되도록 실시간 구독을 건다 (기존에는 처음 한 번만 불러오고 끝이라,
+    // 관리자가 이 화면을 켜둔 채로 있으면 교사 쪽 변경이 안 보였음).
+    const channel = supabase
+      .channel(`admin-scores-${selectedEventId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "scores", filter: `event_id=eq.${selectedEventId}` },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const deletedId = (payload.old as { id?: string }).id;
+            if (!deletedId) return;
+            setRows((prev) => {
+              const classId = Object.keys(prev).find((cid) => prev[cid]?.scoreId === deletedId);
+              if (!classId) return prev;
+              return { ...prev, [classId]: emptyRow() };
+            });
+            return;
+          }
+          const s = payload.new as ScoreRow;
+          setRows((prev) => ({ ...prev, [s.class_id]: rowFromScore(s) }));
+        },
+      )
+      .subscribe((status) => setLive(status === "SUBSCRIBED"));
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [selectedEventId, classes]);
+
+  // 응원 점수도 교사가 다른 화면(🎉 응원점수)에서 지급/차감할 때 바로 보이도록
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-cheer-awards-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cheer_awards" },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as CheerAward;
+            setCheerAwards((prev) => prev.filter((a) => a.id !== old.id));
+            return;
+          }
+          const next = payload.new as CheerAward;
+          setCheerAwards((prev) => {
+            const idx = prev.findIndex((a) => a.id === next.id);
+            if (idx === -1) return [...prev, next];
+            const copy = [...prev];
+            copy[idx] = next;
+            return copy;
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  async function refresh() {
+    setRefreshing(true);
+    const supabase = createClient();
+    const [scoresRes, cheerRes] = await Promise.all([
+      selectedEventId
+        ? supabase.from("scores").select("*").eq("event_id", selectedEventId)
+        : Promise.resolve({ data: null }),
+      supabase.from("cheer_awards").select("*"),
+    ]);
+    if (selectedEventId && scoresRes.data) {
+      const next: Record<string, RowState> = {};
+      for (const c of classes) next[c.id] = emptyRow();
+      for (const s of scoresRes.data as ScoreRow[]) next[s.class_id] = rowFromScore(s);
+      setRows(next);
+    }
+    if (cheerRes.data) setCheerAwards(cheerRes.data as CheerAward[]);
+    setRefreshing(false);
+  }
 
   function updateRow(classId: string, patch: Partial<RowState>) {
     setRows((prev) => ({ ...prev, [classId]: { ...prev[classId], ...patch } }));
@@ -316,16 +395,22 @@ export function AdminScoresClient({
   async function openAudit(classId: string) {
     if (!selectedEvent) return;
     setAuditFor(classId);
+    setAuditError(null);
+    setAuditLogs([]);
     const supabase = createClient();
     // score_id 기준이 아니라 event_id + class_id 기준으로 조회한다.
     // 점수를 "초기화"하면 기존 행이 삭제되고 새 id로 다시 생성되기 때문에,
     // score_id로만 조회하면 초기화 이전 이력이 안 보이는 문제가 있었음.
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("score_audit_log")
       .select("*")
       .eq("event_id", selectedEvent.id)
       .eq("class_id", classId)
       .order("changed_at", { ascending: false });
+    if (error) {
+      setAuditError("이력을 불러오지 못했습니다: " + error.message);
+      return;
+    }
     const logs = (data ?? []) as ScoreAuditLog[];
     setAuditLogs(logs);
 
@@ -340,12 +425,28 @@ export function AdminScoresClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-bold text-slate-900">🔄 점수 초기화 / 직접 관리</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          교사가 최종 제출한 점수는 본인이 스스로 고칠 수 없어요. 잘못 입력된 점수는 여기서
-          관리자가 초기화하거나 직접 수정할 수 있습니다.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold text-slate-900">🔄 점수 초기화 / 직접 관리</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            교사가 최종 제출한 점수는 본인이 스스로 고칠 수 없어요. 잘못 입력된 점수는 여기서
+            관리자가 초기화하거나 직접 수정할 수 있습니다.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <span className={refreshing ? "inline-block animate-spin" : ""}>🔄</span>
+            {refreshing ? "갱신 중..." : "새로고침"}
+          </button>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <span className={`h-2 w-2 rounded-full ${live ? "bg-green-500" : "bg-slate-300"}`} />
+            {live ? "실시간 연결됨" : "연결 중..."}
+          </span>
+        </div>
       </div>
 
       <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
@@ -663,7 +764,8 @@ export function AdminScoresClient({
               </button>
             </div>
             <div className="mt-4 space-y-3">
-              {auditLogs.length === 0 && (
+              {auditError && <p className="text-sm text-red-600">{auditError}</p>}
+              {!auditError && auditLogs.length === 0 && (
                 <p className="text-sm text-slate-400">기록이 없습니다.</p>
               )}
               {auditLogs.map((log) => (

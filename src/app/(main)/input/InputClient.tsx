@@ -134,6 +134,7 @@ export function InputClient({
   const [bulkCancelError, setBulkCancelError] = useState<string | null>(null);
   const [historyFor, setHistoryFor] = useState<ClassRow | null>(null);
   const [historyLogs, setHistoryLogs] = useState<ScoreAuditLog[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
 
   const availableGrades = useMemo(
@@ -361,15 +362,21 @@ export function InputClient({
   async function openHistory(c: ClassRow) {
     if (!selectedEvent) return;
     setHistoryFor(c);
+    setHistoryError(null);
+    setHistoryLogs([]);
     const supabase = createClient();
     // score_id가 아니라 event_id + class_id 기준으로 조회한다 — 제출 취소로
     // 기존 행이 삭제되고 새 id로 다시 생성돼도 이전 이력이 계속 보이도록.
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("score_audit_log")
       .select("*")
       .eq("event_id", selectedEvent.id)
       .eq("class_id", c.id)
       .order("changed_at", { ascending: false });
+    if (error) {
+      setHistoryError("이력을 불러오지 못했습니다: " + error.message);
+      return;
+    }
     const logs = (data ?? []) as ScoreAuditLog[];
     setHistoryLogs(logs);
 
@@ -763,7 +770,8 @@ export function InputClient({
               </button>
             </div>
             <div className="mt-4 space-y-3">
-              {historyLogs.length === 0 && (
+              {historyError && <p className="text-sm text-red-600">{historyError}</p>}
+              {!historyError && historyLogs.length === 0 && (
                 <p className="text-sm text-slate-400">기록이 없습니다.</p>
               )}
               {historyLogs.map((log) => (
