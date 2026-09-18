@@ -608,7 +608,7 @@ export function InputClient({
                             <button
                               disabled={disabled}
                               onClick={() => updateRow(c.id, { pass: true })}
-                              className={`rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
+                              className={`shrink-0 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
                                 row.pass === true
                                   ? "border-green-600 bg-green-50 text-green-700"
                                   : "border-slate-200 text-slate-500"
@@ -619,7 +619,7 @@ export function InputClient({
                             <button
                               disabled={disabled}
                               onClick={() => updateRow(c.id, { pass: false })}
-                              className={`rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
+                              className={`shrink-0 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
                                 row.pass === false
                                   ? "border-red-600 bg-red-50 text-red-700"
                                   : "border-slate-200 text-slate-500"
@@ -659,7 +659,7 @@ export function InputClient({
                                 key={i}
                                 disabled={disabled}
                                 onClick={() => updateRow(c.id, { tier: i })}
-                                className={`rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
+                                className={`shrink-0 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-semibold disabled:opacity-40 ${
                                   row.tier === i
                                     ? "border-fuchsia-600 bg-fuchsia-50 text-fuchsia-700"
                                     : "border-slate-200 text-slate-500"
