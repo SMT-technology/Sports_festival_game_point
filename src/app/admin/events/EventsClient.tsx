@@ -581,7 +581,7 @@ export function EventsClient({
                       <input
                         value={ev.name}
                         onChange={(e) => patchLocal(ev.id, { name: e.target.value })}
-                        className="w-56 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold sm:w-56"
                       />
                       <CategorySelect
                         value={ev.category}

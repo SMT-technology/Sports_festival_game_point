@@ -571,7 +571,7 @@ export function AdminScoresClient({
                 {selectedEvent.scoring_type === "tier" && "사용자 설정 점수"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setBulkResetOpen(true)}
                 disabled={resetTargets.length === 0 || bulkSaving}

@@ -43,6 +43,7 @@ export function DetailedTable({
             <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
               <h2 className="font-bold text-slate-900">{grade}학년 순위</h2>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
@@ -103,6 +104,7 @@ export function DetailedTable({
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })}

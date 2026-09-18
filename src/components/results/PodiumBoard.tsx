@@ -54,15 +54,15 @@ function PodiumSlot({
   total: number;
   style: (typeof PODIUM_STYLE)[number];
 }) {
-  if (!c) return <div className="w-32 sm:w-44" />;
+  if (!c) return <div className="w-20 sm:w-44" />;
   return (
     <div
-      className={`flex w-32 flex-col items-center justify-end rounded-3xl ${style.bg} ${style.height} ${style.scale} p-4 text-center text-white shadow-2xl ring-4 ${style.ring} sm:w-44`}
+      className={`flex w-20 flex-col items-center justify-end rounded-2xl ${style.bg} ${style.height} ${style.scale} p-2 text-center text-white shadow-2xl ring-4 ${style.ring} sm:w-44 sm:rounded-3xl sm:p-4`}
     >
-      <span className="text-6xl drop-shadow-lg sm:text-7xl">{style.medal}</span>
-      <p className="mt-2 text-base font-bold drop-shadow sm:text-lg">{classLabel(c)}</p>
-      <p className="text-4xl font-black drop-shadow sm:text-5xl">{total}</p>
-      <p className="text-sm font-bold opacity-90">{style.label}</p>
+      <span className="text-3xl drop-shadow-lg sm:text-7xl">{style.medal}</span>
+      <p className="mt-2 text-xs font-bold drop-shadow sm:text-lg">{classLabel(c)}</p>
+      <p className="text-2xl font-black drop-shadow sm:text-5xl">{total}</p>
+      <p className="text-xs font-bold opacity-90 sm:text-sm">{style.label}</p>
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function PodiumBoard({
         <p className="mt-1 text-xl font-bold text-slate-600">{selectedGrade}학년</p>
       </div>
 
-      <div className="flex items-end justify-center gap-3 sm:gap-6">
+      <div className="flex items-end justify-center gap-1.5 sm:gap-6">
         <PodiumSlot
           c={second}
           total={classComputed.get(second?.id ?? "")?.total ?? 0}

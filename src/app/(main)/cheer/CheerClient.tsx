@@ -161,7 +161,7 @@ export function CheerClient({
                     <div className="ml-auto flex shrink-0 gap-2">
                       <button
                         onClick={() => openHistory(c)}
-                        className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-50"
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50"
                       >
                         이력
                       </button>
@@ -170,7 +170,7 @@ export function CheerClient({
                           setGivePoints(10);
                           setGiveTarget(c);
                         }}
-                        className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+                        className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
                       >
                         🎉 점수 주기
                       </button>
