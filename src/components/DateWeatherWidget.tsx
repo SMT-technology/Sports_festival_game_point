@@ -102,7 +102,10 @@ export function DateWeatherCompact({
   const info = weather ? describeWeatherCode(weather.code) : null;
 
   return (
-    <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex" title={locationName}>
+    <div
+      className="hidden items-center gap-2 whitespace-nowrap text-xs text-slate-500 sm:flex"
+      title={locationName}
+    >
       <span>{dateStr}</span>
       <span className="font-semibold text-slate-700">{timeStr}</span>
       {weather && info && (
