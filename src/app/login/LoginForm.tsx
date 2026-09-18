@@ -100,9 +100,16 @@ function LoginFormInner({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="h-1 bg-blue-600" />
-      <div className="flex min-h-[calc(100vh-4px)] flex-col items-center justify-center px-4 py-10">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-orange-500">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-10"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(45deg, #fff 0, #fff 2px, transparent 2px, transparent 40px)",
+        }}
+      />
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-4 py-10">
         <DateWeatherCard
           lat={weatherLat}
           lon={weatherLon}
@@ -110,9 +117,9 @@ function LoginFormInner({
           className="mb-6 w-full max-w-sm"
         />
 
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="w-full max-w-sm rounded-2xl border border-white/40 bg-white p-8 shadow-2xl">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-slate-100">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full ring-4 ring-blue-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoError ? "/logo.jpg" : logoUrl}

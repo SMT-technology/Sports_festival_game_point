@@ -49,7 +49,7 @@ export function NavBar({
   return (
     <>
     <header className="border-b border-slate-200 bg-white">
-      <div className="h-1 bg-blue-600" />
+      <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
       {weatherLat != null && weatherLon != null && (
         <div className="border-b border-slate-100 bg-slate-50">
           <div className="mx-auto flex max-w-5xl justify-end px-4 py-1">

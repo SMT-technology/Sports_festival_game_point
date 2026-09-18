@@ -32,10 +32,10 @@ const PODIUM_STYLE = [
   },
 ];
 
-const GRADE_STYLE: Record<number, { text: string }> = {
-  1: { text: "text-blue-600" },
-  2: { text: "text-purple-600" },
-  3: { text: "text-green-600" },
+const GRADE_STYLE: Record<number, { gradient: string; ring: string }> = {
+  1: { gradient: "from-blue-500 to-indigo-600", ring: "ring-blue-200" },
+  2: { gradient: "from-fuchsia-500 to-purple-600", ring: "ring-fuchsia-200" },
+  3: { gradient: "from-emerald-500 to-teal-600", ring: "ring-emerald-200" },
 };
 
 function rankFor(list: ClassRow[], classComputed: ClassComputed, classId: string) {
@@ -80,10 +80,10 @@ function GradePicker({ grades, onPick }: { grades: number[]; onPick: (g: number)
             <button
               key={g}
               onClick={() => onPick(g)}
-              className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm transition hover:border-blue-300 hover:shadow-md"
+              className={`rounded-2xl bg-gradient-to-br ${style.gradient} p-8 text-center text-white shadow-lg ring-4 ${style.ring} transition hover:shadow-xl`}
             >
-              <div className={`text-5xl font-black ${style.text}`}>{g}</div>
-              <div className="mt-1 text-lg font-bold text-slate-700">학년</div>
+              <div className="text-5xl font-black drop-shadow">{g}</div>
+              <div className="mt-1 text-lg font-bold opacity-90">학년</div>
             </button>
           );
         })}

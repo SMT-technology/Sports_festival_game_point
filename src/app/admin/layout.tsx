@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const [profile, branding] = await Promise.all([requireAdmin(), getBranding()]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">
       <NavBar name={profile.name} role={profile.role} {...branding} />
       <div className="mx-auto max-w-6xl px-4 py-6">
         <AdminTabs />

@@ -62,12 +62,19 @@ export function ChangePasswordForm({ required, role }: { required: boolean; role
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="h-1 bg-blue-600" />
-      <div className="flex min-h-[calc(100vh-4px)] items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-orange-500">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-10"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(45deg, #fff 0, #fff 2px, transparent 2px, transparent 40px)",
+        }}
+      />
+      <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm rounded-2xl border border-white/40 bg-white p-8 shadow-2xl">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-2xl">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-2xl ring-4 ring-blue-50">
             🔑
           </div>
           <h1 className="mt-3 text-xl font-bold text-slate-900">비밀번호 변경</h1>

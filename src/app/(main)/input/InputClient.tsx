@@ -156,7 +156,7 @@ export function InputClient({
       : events;
     return groupEventsByLocation(eventsForGrade, locations).map((group, i) => ({
       ...group,
-      solid: locationStyle(i).solid,
+      gradient: locationStyle(i).gradient,
     }));
   }, [events, selectedGrade, locations]);
 
@@ -502,7 +502,7 @@ export function InputClient({
                       <button
                         key={ev.id}
                         onClick={() => pickEvent(ev.id)}
-                        className={`rounded-xl ${group.solid} px-4 py-6 text-center text-base font-semibold text-white shadow-sm transition hover:opacity-90`}
+                        className={`rounded-xl bg-gradient-to-br ${group.gradient} px-4 py-6 text-center text-base font-semibold text-white shadow-md transition hover:shadow-lg hover:opacity-95`}
                       >
                         {ev.name}
                       </button>

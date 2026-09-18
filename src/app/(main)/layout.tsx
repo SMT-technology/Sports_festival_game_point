@@ -6,7 +6,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const [profile, branding] = await Promise.all([requireProfile(), getBranding()]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">
       <NavBar name={profile.name} role={profile.role} {...branding} />
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
