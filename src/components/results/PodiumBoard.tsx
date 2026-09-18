@@ -32,10 +32,10 @@ const PODIUM_STYLE = [
   },
 ];
 
-const GRADE_STYLE: Record<number, { gradient: string; ring: string }> = {
-  1: { gradient: "from-blue-500 to-blue-700", ring: "ring-blue-200" },
-  2: { gradient: "from-purple-500 to-purple-700", ring: "ring-purple-200" },
-  3: { gradient: "from-green-500 to-green-700", ring: "ring-green-200" },
+const GRADE_STYLE: Record<number, { text: string }> = {
+  1: { text: "text-blue-600" },
+  2: { text: "text-purple-600" },
+  3: { text: "text-green-600" },
 };
 
 function rankFor(list: ClassRow[], classComputed: ClassComputed, classId: string) {
@@ -70,8 +70,8 @@ function PodiumSlot({
 function GradePicker({ grades, onPick }: { grades: number[]; onPick: (g: number) => void }) {
   return (
     <div className="space-y-6 text-center">
-      <p className="text-6xl">🏆</p>
-      <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">실시간 현재 순위</h1>
+      <p className="text-5xl">🏆</p>
+      <h1 className="text-2xl font-bold text-slate-900">실시간 현재 순위</h1>
       <p className="text-sm text-slate-500">확인할 학년을 선택해주세요.</p>
       <div className="mx-auto grid max-w-md grid-cols-1 gap-4 sm:grid-cols-3">
         {grades.map((g) => {
@@ -80,10 +80,10 @@ function GradePicker({ grades, onPick }: { grades: number[]; onPick: (g: number)
             <button
               key={g}
               onClick={() => onPick(g)}
-              className={`rounded-2xl bg-gradient-to-br ${style.gradient} p-8 text-center text-white shadow-lg ring-4 ${style.ring} transition hover:-translate-y-1 hover:shadow-2xl`}
+              className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm transition hover:border-blue-300 hover:shadow-md"
             >
-              <div className="text-5xl font-black drop-shadow">{g}</div>
-              <div className="mt-1 text-lg font-bold drop-shadow">학년</div>
+              <div className={`text-5xl font-black ${style.text}`}>{g}</div>
+              <div className="mt-1 text-lg font-bold text-slate-700">학년</div>
             </button>
           );
         })}

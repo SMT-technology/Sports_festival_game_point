@@ -170,7 +170,7 @@ export function CheerClient({
                           setGivePoints(10);
                           setGiveTarget(c);
                         }}
-                        className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:shadow-md"
+                        className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
                       >
                         🎉 점수 주기
                       </button>

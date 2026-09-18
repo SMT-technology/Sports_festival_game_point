@@ -156,7 +156,7 @@ export function InputClient({
       : events;
     return groupEventsByLocation(eventsForGrade, locations).map((group, i) => ({
       ...group,
-      gradient: locationStyle(i).gradient,
+      solid: locationStyle(i).solid,
     }));
   }, [events, selectedGrade, locations]);
 
@@ -463,10 +463,10 @@ export function InputClient({
               <button
                 key={grade}
                 onClick={() => pickGrade(grade)}
-                className="rounded-2xl border-2 border-slate-200 bg-white p-6 text-center shadow-sm transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg"
+                className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:border-blue-300 hover:shadow-md"
               >
                 <ShirtGraphic fillClass={GRADE_UNIFORM[grade]} label={String(grade)} />
-                <div className="mt-3 text-xl font-extrabold text-slate-800">{grade}학년</div>
+                <div className="mt-3 text-xl font-bold text-slate-800">{grade}학년</div>
               </button>
             ))}
           </div>
@@ -478,8 +478,7 @@ export function InputClient({
         <div className="space-y-5">
           <BackButton onClick={() => setStep("grade")} label="← 뒤로 (학년 다시 선택)" />
           <div className="text-center">
-            <p className="text-5xl">🏅</p>
-            <h1 className="mt-3 text-3xl font-extrabold text-slate-900">
+            <h1 className="text-xl font-bold text-slate-900">
               {selectedGrade}학년 · 어느 종목인가요?
             </h1>
             <p className="mt-1 text-sm text-slate-500">담당 종목을 선택해주세요.</p>
@@ -494,16 +493,16 @@ export function InputClient({
             {displayGroups.map((group) => {
               return (
                 <div key={group.name}>
-                  <p className="mb-2 flex items-center gap-2">
-                    <span className="text-3xl">{group.emoji}</span>
-                    <span className="text-2xl font-extrabold text-slate-800">{group.name}</span>
+                  <p className="mb-2 flex items-center gap-1.5">
+                    <span className="text-lg">{group.emoji}</span>
+                    <span className="text-base font-bold text-slate-700">{group.name}</span>
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {group.events.map((ev) => (
                       <button
                         key={ev.id}
                         onClick={() => pickEvent(ev.id)}
-                        className={`rounded-2xl bg-gradient-to-br ${group.gradient} px-4 py-6 text-center text-lg font-bold text-white shadow-md transition hover:scale-[1.03] hover:shadow-lg`}
+                        className={`rounded-xl ${group.solid} px-4 py-6 text-center text-base font-semibold text-white shadow-sm transition hover:opacity-90`}
                       >
                         {ev.name}
                       </button>

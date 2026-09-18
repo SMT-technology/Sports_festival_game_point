@@ -83,6 +83,9 @@ export interface AppSettings {
   org_name: string;
   logo_url: string;
   timetable_url: string;
+  weather_lat: number;
+  weather_lon: number;
+  weather_location_name: string;
   updated_at: string;
 }
 

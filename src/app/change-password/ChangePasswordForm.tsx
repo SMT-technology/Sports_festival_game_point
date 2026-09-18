@@ -62,13 +62,15 @@ export function ChangePasswordForm({ required, role }: { required: boolean; role
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-orange-500 px-4 py-10">
-      <div className="relative w-full max-w-sm rounded-3xl bg-white/95 p-8 shadow-2xl backdrop-blur">
+    <div className="min-h-screen bg-slate-50">
+      <div className="h-1 bg-blue-600" />
+      <div className="flex min-h-[calc(100vh-4px)] items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-orange-400 text-3xl shadow-md">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-2xl">
             🔑
           </div>
-          <h1 className="mt-3 text-xl font-extrabold text-slate-900">비밀번호 변경</h1>
+          <h1 className="mt-3 text-xl font-bold text-slate-900">비밀번호 변경</h1>
           <p className="mt-1 text-sm text-slate-500">
             {required
               ? "최초 로그인입니다. 계속 사용할 새 비밀번호를 설정해주세요."
@@ -141,6 +143,7 @@ export function ChangePasswordForm({ required, role }: { required: boolean; role
             로그아웃
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

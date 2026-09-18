@@ -21,28 +21,34 @@ export function locationEmoji(locations: EventLocation[], name: string): string 
   return locations.find((l) => l.name === name)?.emoji ?? "📍";
 }
 
-// 장소가 몇 개든 상관없이 돌려쓰는 색상 팔레트 (관리자 화면에서 장소별로 시각적으로 구분하기 위함)
+// 장소가 몇 개든 상관없이 돌려쓰는 색상 팔레트 (화면에서 장소별로 시각적으로
+// 구분하기 위함). solid는 미니멀한 화면(예: 입력 탭 종목 버튼)에서 그라데이션
+// 대신 쓰는 단색 버전.
 const LOCATION_STYLES = [
-  { border: "border-red-300", header: "bg-red-50 text-red-700", gradient: "from-red-500 to-orange-500" },
-  { border: "border-sky-300", header: "bg-sky-50 text-sky-700", gradient: "from-sky-500 to-blue-600" },
+  { border: "border-red-300", header: "bg-red-50 text-red-700", solid: "bg-red-500", gradient: "from-red-500 to-orange-500" },
+  { border: "border-sky-300", header: "bg-sky-50 text-sky-700", solid: "bg-sky-500", gradient: "from-sky-500 to-blue-600" },
   {
     border: "border-fuchsia-300",
     header: "bg-fuchsia-50 text-fuchsia-700",
+    solid: "bg-fuchsia-500",
     gradient: "from-fuchsia-500 to-purple-600",
   },
   {
     border: "border-emerald-300",
     header: "bg-emerald-50 text-emerald-700",
+    solid: "bg-emerald-500",
     gradient: "from-emerald-500 to-teal-600",
   },
   {
     border: "border-amber-300",
     header: "bg-amber-50 text-amber-700",
+    solid: "bg-amber-500",
     gradient: "from-amber-500 to-orange-600",
   },
   {
     border: "border-indigo-300",
     header: "bg-indigo-50 text-indigo-700",
+    solid: "bg-indigo-500",
     gradient: "from-indigo-500 to-blue-700",
   },
 ];

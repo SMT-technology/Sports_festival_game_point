@@ -12,6 +12,9 @@ export default async function AdminSettingsPage() {
       initialOrgName={settings?.org_name ?? "신도체육한마당"}
       initialLogoUrl={settings?.logo_url ?? "/logo.jpg"}
       initialTimetableUrl={settings?.timetable_url ?? "/sports-festival-game_TT.png"}
+      initialWeatherLat={settings?.weather_lat ?? 37.5665}
+      initialWeatherLon={settings?.weather_lon ?? 126.978}
+      initialWeatherLocationName={settings?.weather_location_name ?? "서울"}
     />
   );
 }

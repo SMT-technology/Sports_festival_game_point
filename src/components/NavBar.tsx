@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { DateWeatherCompact } from "@/components/DateWeatherWidget";
 
 const LINKS = [
   { href: "/input", label: "📝 입력" },
@@ -19,12 +20,18 @@ export function NavBar({
   orgName,
   logoUrl,
   timetableUrl,
+  weatherLat,
+  weatherLon,
+  weatherLocationName,
 }: {
   name: string;
   role: "teacher" | "admin";
   orgName: string;
   logoUrl: string;
   timetableUrl?: string;
+  weatherLat?: number;
+  weatherLon?: number;
+  weatherLocationName?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -42,7 +49,7 @@ export function NavBar({
   return (
     <>
     <header className="border-b border-slate-200 bg-white">
-      <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
+      <div className="h-1 bg-blue-600" />
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
@@ -81,6 +88,16 @@ export function NavBar({
           </nav>
         </div>
         <div className="flex items-center gap-3">
+          {weatherLat != null && weatherLon != null && (
+            <>
+              <DateWeatherCompact
+                lat={weatherLat}
+                lon={weatherLon}
+                locationName={weatherLocationName ?? ""}
+              />
+              <span className="hidden h-4 w-px bg-slate-200 sm:block" />
+            </>
+          )}
           {role === "admin" && (
             <Link
               href="/admin/classes"
