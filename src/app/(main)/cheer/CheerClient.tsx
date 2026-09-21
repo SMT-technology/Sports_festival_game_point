@@ -97,7 +97,11 @@ export function CheerClient({
     const newAward = data as CheerAward;
     setAwards((prev) => (prev.some((a) => a.id === newAward.id) ? prev : [...prev, newAward]));
     setGiveTarget(null);
-    setGivePoints(10);
+  }
+
+  function askGive(c: ClassRow, points: number) {
+    setGivePoints(points);
+    setGiveTarget(c);
   }
 
   async function openHistory(c: ClassRow) {
@@ -158,22 +162,39 @@ export function CheerClient({
                     >
                       {totalsByClass.get(c.id) ?? 0}점
                     </span>
-                    <div className="ml-auto flex shrink-0 gap-2">
+                    <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
                       <button
                         onClick={() => openHistory(c)}
                         className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50"
                       >
                         이력
                       </button>
-                      <button
-                        onClick={() => {
-                          setGivePoints(10);
-                          setGiveTarget(c);
-                        }}
-                        className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
-                      >
-                        🎉 점수 주기
-                      </button>
+                      <div className="flex shrink-0 gap-1.5">
+                        <button
+                          onClick={() => askGive(c, -10)}
+                          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm transition hover:bg-red-100"
+                        >
+                          -10
+                        </button>
+                        <button
+                          onClick={() => askGive(c, -5)}
+                          className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-600 shadow-sm transition hover:bg-red-100"
+                        >
+                          -5
+                        </button>
+                        <button
+                          onClick={() => askGive(c, 5)}
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 shadow-sm transition hover:bg-amber-100"
+                        >
+                          +5
+                        </button>
+                        <button
+                          onClick={() => askGive(c, 10)}
+                          className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow-md"
+                        >
+                          +10
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -185,28 +206,22 @@ export function CheerClient({
 
       <ConfirmDialog
         open={!!giveTarget}
-        title={`${giveTarget ? classLabel(giveTarget) : ""}에 응원 점수 주기`}
-        confirmLabel="지급"
+        title="응원 점수 최종 확인"
+        confirmLabel={givePoints < 0 ? "차감하기" : "지급하기"}
+        danger={givePoints < 0}
         loading={giving}
         onCancel={() => setGiveTarget(null)}
         onConfirm={confirmGive}
         description={
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">
-              -100~100점 사이로 입력하세요. 마이너스 값을 넣으면 감점돼요.
-            </p>
-            <input
-              type="number"
-              min={-100}
-              max={100}
-              autoFocus
-              value={givePoints}
-              onChange={(e) =>
-                setGivePoints(Math.max(-100, Math.min(100, Number(e.target.value) || 0)))
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-lg font-bold"
-            />
-          </div>
+          <>
+            {giveTarget ? classLabel(giveTarget) : ""}에{" "}
+            <span
+              className={`text-2xl font-black ${givePoints < 0 ? "text-red-600" : "text-amber-600"}`}
+            >
+              {signed(givePoints)}점
+            </span>
+            을 {givePoints < 0 ? "차감" : "지급"}합니다. 버튼을 잘못 누른 경우 취소를 눌러주세요.
+          </>
         }
       />
 
