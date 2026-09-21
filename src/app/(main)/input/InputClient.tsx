@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   AUDIT_ACTION_LABEL,
@@ -63,7 +62,6 @@ export function InputClient({
   classes: ClassRow[];
   locations: EventLocation[];
 }) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>("grade");
   const [selectedGrade, setSelectedGrade] = useState<1 | 2 | 3 | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -396,7 +394,6 @@ export function InputClient({
       {/* ---------------- STEP 1: 학년 선택 ---------------- */}
       {step === "grade" && (
         <div className="space-y-6">
-          <BackButton onClick={() => router.push("/results")} label="← 결과 화면으로" />
           <div className="text-center">
             <p className="text-3xl">🏟️</p>
             <h1 className="mt-2 text-lg font-bold text-slate-900">어느 학년 점수를 입력할까요?</h1>
