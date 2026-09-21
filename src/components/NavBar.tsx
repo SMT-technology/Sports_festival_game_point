@@ -12,11 +12,14 @@ const LINKS = [
   { href: "/results", label: "🏆 결과" },
 ];
 
+const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
+
 export function NavBar({
   name,
   role,
   orgName,
   logoUrl,
+  timetableUrl,
   weatherLat,
   weatherLon,
   weatherLocationName,
@@ -25,13 +28,16 @@ export function NavBar({
   role: "teacher" | "admin";
   orgName: string;
   logoUrl: string;
+  timetableUrl?: string;
   weatherLat?: number;
   weatherLon?: number;
   weatherLocationName?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [timetableError, setTimetableError] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -41,6 +47,7 @@ export function NavBar({
   }
 
   return (
+    <>
     <header className="border-b border-slate-200 bg-white">
       <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
       {weatherLat != null && weatherLon != null && (
@@ -83,6 +90,12 @@ export function NavBar({
                 </Link>
               );
             })}
+            <button
+              onClick={() => setTimetableOpen(true)}
+              className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              🗓️ 시간표
+            </button>
           </nav>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -114,5 +127,33 @@ export function NavBar({
         </div>
       </div>
     </header>
+
+    {timetableOpen && (
+      <div
+        onClick={() => setTimetableOpen(false)}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      >
+        {/* 닫기 버튼은 이미지 크기와 무관하게 화면(오버레이) 기준 모서리에
+            고정한다 — 예전엔 이미지 바로 위에 붙여놨더니, 태블릿처럼 세로
+            공간이 좁아 이미지가 화면 높이를 거의 다 채우는 경우 버튼이
+            화면 위로 밀려 나가 안 보이는 문제가 있었다. */}
+        <button
+          onClick={() => setTimetableOpen(false)}
+          className="absolute right-4 top-4 z-[60] rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-lg hover:bg-slate-100"
+        >
+          ✕ 닫기
+        </button>
+        <div className="relative max-h-[85vh] max-w-4xl" onClick={(e) => e.stopPropagation()}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={timetableError ? DEFAULT_TIMETABLE_URL : timetableUrl || DEFAULT_TIMETABLE_URL}
+            alt="학년별 경기 일정표"
+            onError={() => setTimetableError(true)}
+            className="max-h-[85vh] w-auto rounded-xl bg-white object-contain shadow-2xl"
+          />
+        </div>
+      </div>
+    )}
+    </>
   );
 }
