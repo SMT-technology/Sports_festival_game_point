@@ -103,7 +103,7 @@ export function DateWeatherCompact({
 
   return (
     <div
-      className="hidden items-center gap-2 whitespace-nowrap text-xs text-slate-500 sm:flex"
+      className="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 whitespace-nowrap text-xs text-slate-500"
       title={locationName}
     >
       <span>{dateStr}</span>
