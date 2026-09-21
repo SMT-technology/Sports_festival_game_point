@@ -99,14 +99,12 @@ export function NavBar({
             </Link>
           )}
           <span className="whitespace-nowrap text-sm text-slate-500">{name}</span>
-          {role === "admin" && (
-            <Link
-              href="/change-password"
-              className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-            >
-              🔑 비밀번호 변경
-            </Link>
-          )}
+          <Link
+            href="/change-password"
+            className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            🔑 비밀번호 변경
+          </Link>
           <button
             onClick={handleSignOut}
             className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
