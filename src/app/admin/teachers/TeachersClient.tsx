@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DEFAULT_TEACHER_PIN, isValidPin, nameToTeacherEmail } from "@/lib/teacherAuth";
+import { DEFAULT_TEACHER_PIN, nameToTeacherEmail } from "@/lib/teacherAuth";
 
 export function TeachersClient({
   currentUserId,
@@ -52,7 +52,7 @@ export function TeachersClient({
         email: nameToTeacherEmail(form.name),
         name: form.name.trim(),
         role: "teacher",
-        must_change_password: true,
+        must_change_password: false,
         created_at: new Date().toISOString(),
       },
     ]);
@@ -127,25 +127,17 @@ export function TeachersClient({
   }
 
   async function resetPassword(p: Profile) {
-    const pin = prompt(
-      `${p.name} 님에게 새로 발급할 임시 비밀번호(숫자 4자리)를 입력하세요`,
-      DEFAULT_TEACHER_PIN,
-    );
-    if (pin === null) return;
-    if (!isValidPin(pin)) {
-      alert("비밀번호는 숫자 4자리로 입력해주세요.");
-      return;
-    }
+    if (!confirm(`${p.name} 님의 비밀번호를 ${DEFAULT_TEACHER_PIN}(으)로 초기화하시겠습니까?`)) return;
     setResetBusyId(p.id);
     const res = await fetch(`/api/admin/teachers/${p.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin }),
+      body: JSON.stringify({ pin: DEFAULT_TEACHER_PIN }),
     });
     const body = await res.json();
     setResetBusyId(null);
     if (!res.ok) alert("변경 실패: " + body.error);
-    else alert(`임시 비밀번호(${pin})로 초기화되었습니다. 다음 로그인 시 본인이 새로 설정해야 합니다.`);
+    else alert(`비밀번호가 ${DEFAULT_TEACHER_PIN}(으)로 초기화되었습니다.`);
   }
 
   async function saveName(p: Profile) {
@@ -199,9 +191,9 @@ export function TeachersClient({
         <p className="mt-1 text-sm text-slate-500">
           계정을 만들면 별도 배정 없이 모든 학년·종목에 바로 점수를 입력할 수 있어요. 교사
           로그인은 이메일이 아니라 <b>성함 + 4자리 비밀번호</b>로 이뤄져요. 이름만 입력하면
-          초기 비밀번호 <b>{DEFAULT_TEACHER_PIN}</b>으로 계정이 만들어지고, 교사가 최초
-          로그인하면 본인이 직접 새 4자리 비밀번호로 바꿔야 합니다. 이름이 같은 교사가 이미
-          있으면 &ldquo;김민수(2반)&rdquo;처럼 구분해서 등록해주세요.
+          비밀번호 <b>{DEFAULT_TEACHER_PIN}</b>으로 계정이 만들어지고, 별도로 바꿀 필요 없이
+          계속 그 비밀번호로 로그인하면 됩니다. 이름이 같은 교사가 이미 있으면
+          &ldquo;김민수(2반)&rdquo;처럼 구분해서 등록해주세요.
         </p>
       </div>
 
@@ -222,7 +214,7 @@ export function TeachersClient({
             disabled={busy}
             className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            계정 생성 (초기 비밀번호 {DEFAULT_TEACHER_PIN})
+            계정 생성 (비밀번호 {DEFAULT_TEACHER_PIN})
           </button>
         </div>
         {formError && <p className="mt-2 text-xs text-red-600">{formError}</p>}
@@ -302,7 +294,7 @@ export function TeachersClient({
                             disabled={resetBusyId === p.id}
                             className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                           >
-                            🔄 비밀번호 초기화
+                            🔄 비밀번호 초기화 ({DEFAULT_TEACHER_PIN})
                           </button>
                         )}
                         <button

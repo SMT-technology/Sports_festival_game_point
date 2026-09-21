@@ -20,6 +20,7 @@ import type {
   ScoreRow,
 } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { BackButton, GradeGrid } from "@/components/GradeStep";
 
 interface RowState {
   scoreId?: string;
@@ -47,63 +48,6 @@ function rowFromScore(score: ScoreRow): RowState {
     status: score.status,
     submittedBy: score.submitted_by,
   };
-}
-
-// 학년별 체육복 색상
-const GRADE_UNIFORM: Record<number, string> = {
-  1: "fill-blue-600",
-  2: "fill-purple-600",
-  3: "fill-green-600",
-};
-
-function ShirtGraphic({ fillClass, label }: { fillClass: string; label: string }) {
-  return (
-    <svg viewBox="0 0 100 100" className="mx-auto h-28 w-28 drop-shadow-md" aria-hidden>
-      {/* 체육복 몸통 + 소매 */}
-      <path
-        d="M30,15 C38,24 62,24 70,15 L92,28 L78,40 L78,88 L22,88 L22,40 L8,28 Z"
-        className={fillClass}
-      />
-      {/* 깃 (카라) 라인 */}
-      <path
-        d="M33,17 C40,24 60,24 67,17"
-        fill="none"
-        stroke="white"
-        strokeWidth="3"
-        strokeLinecap="round"
-        opacity="0.9"
-      />
-      {/* 소매 밑단 */}
-      <line x1="92" y1="28" x2="78" y2="40" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" />
-      <line x1="8" y1="28" x2="22" y2="40" stroke="white" strokeOpacity="0.5" strokeWidth="1.5" />
-      {/* 옆선 */}
-      <line x1="78" y1="40" x2="78" y2="88" stroke="black" strokeOpacity="0.15" strokeWidth="1.5" />
-      <line x1="22" y1="40" x2="22" y2="88" stroke="black" strokeOpacity="0.15" strokeWidth="1.5" />
-      {/* 등번호 */}
-      <text
-        x="50"
-        y="70"
-        textAnchor="middle"
-        fontSize="34"
-        fontWeight="800"
-        fill="white"
-        opacity="0.95"
-      >
-        {label}
-      </text>
-    </svg>
-  );
-}
-
-function BackButton({ onClick, label = "← 뒤로" }: { onClick: () => void; label?: string }) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-    >
-      {label}
-    </button>
-  );
 }
 
 type Step = "grade" | "event" | "score";
@@ -458,18 +402,7 @@ export function InputClient({
             <h1 className="mt-2 text-lg font-bold text-slate-900">어느 학년 점수를 입력할까요?</h1>
             <p className="mt-1 text-sm text-slate-500">학년을 먼저 선택해주세요.</p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {availableGrades.map((grade) => (
-              <button
-                key={grade}
-                onClick={() => pickGrade(grade)}
-                className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm transition hover:border-blue-300 hover:shadow-md"
-              >
-                <ShirtGraphic fillClass={GRADE_UNIFORM[grade]} label={String(grade)} />
-                <div className="mt-3 text-xl font-bold text-slate-800">{grade}학년</div>
-              </button>
-            ))}
-          </div>
+          <GradeGrid grades={availableGrades} onPick={pickGrade} />
         </div>
       )}
 

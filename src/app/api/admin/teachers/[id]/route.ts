@@ -101,7 +101,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
       const { error } = await admin
         .from("profiles")
-        .update({ role: "teacher", email: newEmail, must_change_password: true })
+        .update({ role: "teacher", email: newEmail, must_change_password: false })
         .eq("id", id);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -115,9 +115,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       password: pinToTeacherPassword(pin),
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-    // 관리자가 임시 비밀번호를 다시 지정했으므로, 다음 로그인 때 본인이 새로 설정하도록 강제
-    await admin.from("profiles").update({ must_change_password: true }).eq("id", id);
   }
 
   if (name !== undefined) {

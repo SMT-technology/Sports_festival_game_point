@@ -5,16 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { classLabel } from "@/lib/scoring";
 import type { CheerAward, ClassRow, Profile } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { BackButton, GradeGrid } from "@/components/GradeStep";
 
 function signed(points: number): string {
   return points >= 0 ? `+${points}` : `${points}`;
 }
-
-const GRADE_STYLE: Record<number, { border: string; header: string; badge: string }> = {
-  1: { border: "border-blue-400", header: "bg-blue-50", badge: "bg-blue-600 text-white" },
-  2: { border: "border-purple-400", header: "bg-purple-50", badge: "bg-purple-600 text-white" },
-  3: { border: "border-green-400", header: "bg-green-50", badge: "bg-green-600 text-white" },
-};
 
 export function CheerClient({
   initialClasses,
@@ -23,6 +18,7 @@ export function CheerClient({
   initialClasses: ClassRow[];
   initialAwards: CheerAward[];
 }) {
+  const [selectedGrade, setSelectedGrade] = useState<1 | 2 | 3 | null>(null);
   const [awards, setAwards] = useState<CheerAward[]>(initialAwards);
   const [giveTarget, setGiveTarget] = useState<ClassRow | null>(null);
   const [givePoints, setGivePoints] = useState(10);
@@ -65,14 +61,18 @@ export function CheerClient({
     return map;
   }, [awards]);
 
-  const classesByGrade = useMemo(() => {
-    const map = new Map<number, ClassRow[]>();
-    for (const c of initialClasses) {
-      if (!map.has(c.grade)) map.set(c.grade, []);
-      map.get(c.grade)!.push(c);
-    }
-    return map;
-  }, [initialClasses]);
+  const availableGrades = useMemo(
+    () => [...new Set(initialClasses.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
+    [initialClasses],
+  );
+
+  const gradeClasses = useMemo(
+    () =>
+      selectedGrade
+        ? initialClasses.filter((c) => c.grade === selectedGrade).sort((a, b) => a.class_no - b.class_no)
+        : [],
+    [initialClasses, selectedGrade],
+  );
 
   async function confirmGive() {
     if (!giveTarget) return;
@@ -130,79 +130,85 @@ export function CheerClient({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-bold text-slate-900">🎉 응원 점수</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          반이 열심히 응원·질서를 지킬 때마다 점수를 눌러서 바로 지급하세요. 반대로 응원·질서를
-          지키지 않으면 마이너스 점수로 감점할 수도 있어요. 지급한 점수는 누적되고, 종합
-          순위와는 별도로 응원상으로 따로 집계·시상됩니다.
-        </p>
-      </div>
+      {/* ---------------- STEP 1: 학년 선택 ---------------- */}
+      {selectedGrade === null && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <p className="text-3xl">🎉</p>
+            <h1 className="mt-2 text-lg font-bold text-slate-900">어느 학년에 응원 점수를 줄까요?</h1>
+            <p className="mt-1 text-sm text-slate-500">학년을 먼저 선택해주세요.</p>
+          </div>
+          <GradeGrid grades={availableGrades} onPick={setSelectedGrade} />
+        </div>
+      )}
 
-      <div className="space-y-6">
-        {[...classesByGrade.keys()].sort().map((grade) => {
-          const style = GRADE_STYLE[grade];
-          return (
-            <div key={grade} className={`overflow-hidden rounded-xl border-l-4 ${style.border} border border-slate-200 bg-white`}>
-              <div className={`flex items-center gap-2 px-5 py-2 ${style.header}`}>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
-                  {grade}학년
-                </span>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {classesByGrade.get(grade)!.map((c) => (
-                  <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm">
-                    <span className="w-20 shrink-0 font-medium text-slate-700">
-                      {classLabel(c)}
-                    </span>
-                    <span
-                      className={`text-lg font-extrabold ${
-                        (totalsByClass.get(c.id) ?? 0) < 0 ? "text-red-600" : "text-amber-600"
-                      }`}
+      {/* ---------------- STEP 2: 반별 응원 점수 ---------------- */}
+      {selectedGrade !== null && (
+        <div className="space-y-5">
+          <BackButton onClick={() => setSelectedGrade(null)} label="← 뒤로 (학년 다시 선택)" />
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">🎉 {selectedGrade}학년 응원 점수</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              반이 열심히 응원·질서를 지킬 때마다 점수를 눌러서 바로 지급하세요. 반대로 응원·질서를
+              지키지 않으면 마이너스 점수로 감점할 수도 있어요. 지급한 점수는 누적되고, 종합
+              순위와는 별도로 응원상으로 따로 집계·시상됩니다.
+            </p>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="divide-y divide-slate-100">
+              {gradeClasses.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5 text-sm">
+                  <span className="w-20 shrink-0 font-medium text-slate-700">
+                    {classLabel(c)}
+                  </span>
+                  <span
+                    className={`text-lg font-extrabold ${
+                      (totalsByClass.get(c.id) ?? 0) < 0 ? "text-red-600" : "text-amber-600"
+                    }`}
+                  >
+                    {totalsByClass.get(c.id) ?? 0}점
+                  </span>
+                  <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => openHistory(c)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50"
                     >
-                      {totalsByClass.get(c.id) ?? 0}점
-                    </span>
-                    <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+                      이력
+                    </button>
+                    <div className="flex shrink-0 gap-1.5">
                       <button
-                        onClick={() => openHistory(c)}
-                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50"
+                        onClick={() => askGive(c, -10)}
+                        className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm transition hover:bg-red-100"
                       >
-                        이력
+                        -10
                       </button>
-                      <div className="flex shrink-0 gap-1.5">
-                        <button
-                          onClick={() => askGive(c, -10)}
-                          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm transition hover:bg-red-100"
-                        >
-                          -10
-                        </button>
-                        <button
-                          onClick={() => askGive(c, -5)}
-                          className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-600 shadow-sm transition hover:bg-red-100"
-                        >
-                          -5
-                        </button>
-                        <button
-                          onClick={() => askGive(c, 5)}
-                          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 shadow-sm transition hover:bg-amber-100"
-                        >
-                          +5
-                        </button>
-                        <button
-                          onClick={() => askGive(c, 10)}
-                          className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow-md"
-                        >
-                          +10
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => askGive(c, -5)}
+                        className="rounded-lg border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-600 shadow-sm transition hover:bg-red-100"
+                      >
+                        -5
+                      </button>
+                      <button
+                        onClick={() => askGive(c, 5)}
+                        className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 shadow-sm transition hover:bg-amber-100"
+                      >
+                        +5
+                      </button>
+                      <button
+                        onClick={() => askGive(c, 10)}
+                        className="rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow-md"
+                      >
+                        +10
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!giveTarget}
