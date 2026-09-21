@@ -12,14 +12,11 @@ const LINKS = [
   { href: "/results", label: "🏆 결과" },
 ];
 
-const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
-
 export function NavBar({
   name,
   role,
   orgName,
   logoUrl,
-  timetableUrl,
   weatherLat,
   weatherLon,
   weatherLocationName,
@@ -28,16 +25,13 @@ export function NavBar({
   role: "teacher" | "admin";
   orgName: string;
   logoUrl: string;
-  timetableUrl?: string;
   weatherLat?: number;
   weatherLon?: number;
   weatherLocationName?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [timetableError, setTimetableError] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -47,7 +41,6 @@ export function NavBar({
   }
 
   return (
-    <>
     <header className="border-b border-slate-200 bg-white">
       <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
       {weatherLat != null && weatherLon != null && (
@@ -90,12 +83,6 @@ export function NavBar({
                 </Link>
               );
             })}
-            <button
-              onClick={() => setTimetableOpen(true)}
-              className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >
-              🗓️ 시간표
-            </button>
           </nav>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -127,30 +114,5 @@ export function NavBar({
         </div>
       </div>
     </header>
-
-    {timetableOpen && (
-      <div
-        onClick={() => setTimetableOpen(false)}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      >
-        <div className="relative max-h-[90vh] max-w-4xl">
-          <button
-            onClick={() => setTimetableOpen(false)}
-            className="absolute -top-10 right-0 text-2xl text-white hover:text-slate-300"
-          >
-            ✕ 닫기
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={timetableError ? DEFAULT_TIMETABLE_URL : timetableUrl || DEFAULT_TIMETABLE_URL}
-            alt="학년별 경기 일정표"
-            onClick={(e) => e.stopPropagation()}
-            onError={() => setTimetableError(true)}
-            className="max-h-[90vh] w-auto rounded-xl bg-white object-contain shadow-2xl"
-          />
-        </div>
-      </div>
-    )}
-    </>
   );
 }

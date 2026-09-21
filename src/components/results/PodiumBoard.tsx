@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { classLabel } from "@/lib/scoring";
 import type { ClassRow } from "@/lib/database.types";
 import type { ClassComputed } from "./types";
@@ -32,12 +31,6 @@ const PODIUM_STYLE = [
   },
 ];
 
-const GRADE_STYLE: Record<number, { gradient: string; ring: string }> = {
-  1: { gradient: "from-blue-500 to-indigo-600", ring: "ring-blue-200" },
-  2: { gradient: "from-fuchsia-500 to-purple-600", ring: "ring-fuchsia-200" },
-  3: { gradient: "from-emerald-500 to-teal-600", ring: "ring-emerald-200" },
-};
-
 function rankFor(list: ClassRow[], classComputed: ClassComputed, classId: string) {
   const totals = list.map((c) => classComputed.get(c.id)?.total ?? 0);
   const idx = list.findIndex((c) => c.id === classId);
@@ -67,31 +60,6 @@ function PodiumSlot({
   );
 }
 
-function GradePicker({ grades, onPick }: { grades: number[]; onPick: (g: number) => void }) {
-  return (
-    <div className="space-y-6 text-center">
-      <p className="text-5xl">🏆</p>
-      <h1 className="text-2xl font-bold text-slate-900">실시간 현재 순위</h1>
-      <p className="text-sm text-slate-500">확인할 학년을 선택해주세요.</p>
-      <div className="mx-auto grid max-w-md grid-cols-1 gap-4 sm:grid-cols-3">
-        {grades.map((g) => {
-          const style = GRADE_STYLE[g];
-          return (
-            <button
-              key={g}
-              onClick={() => onPick(g)}
-              className={`rounded-2xl bg-gradient-to-br ${style.gradient} p-8 text-center text-white shadow-lg ring-4 ${style.ring} transition hover:shadow-xl`}
-            >
-              <div className="text-5xl font-black drop-shadow">{g}</div>
-              <div className="mt-1 text-lg font-bold opacity-90">학년</div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function HiddenNotice() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
@@ -104,50 +72,23 @@ function HiddenNotice() {
   );
 }
 
-export function PodiumBoard({
-  classesByGrade,
+function GradeSection({
+  grade,
+  list,
   classComputed,
-  rankingsVisible,
 }: {
-  classesByGrade: Map<number, ClassRow[]>;
+  grade: number;
+  list: ClassRow[];
   classComputed: ClassComputed;
-  rankingsVisible: boolean;
 }) {
-  const grades = [...classesByGrade.keys()].sort();
-  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
-
-  if (!rankingsVisible) {
-    return <HiddenNotice />;
-  }
-
-  if (selectedGrade === null || !classesByGrade.has(selectedGrade)) {
-    return <GradePicker grades={grades} onPick={setSelectedGrade} />;
-  }
-
-  const list = classesByGrade.get(selectedGrade)!;
   const [first, second, third] = list;
   const rest = list.slice(3);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setSelectedGrade(null)}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-        >
-          ← 학년 다시 선택
-        </button>
-      </div>
+    <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 sm:p-6">
+      <p className="text-center text-lg font-bold text-slate-700">{grade}학년</p>
 
-      <div className="text-center">
-        <p className="text-5xl">🏆</p>
-        <h1 className="mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl">
-          실시간 현재 순위
-        </h1>
-        <p className="mt-1 text-xl font-bold text-slate-600">{selectedGrade}학년</p>
-      </div>
-
-      <div className="flex items-end justify-center gap-1.5 sm:gap-6">
+      <div className="mt-4 flex items-end justify-center gap-1.5 sm:gap-6">
         <PodiumSlot
           c={second}
           total={classComputed.get(second?.id ?? "")?.total ?? 0}
@@ -181,6 +122,35 @@ export function PodiumBoard({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+export function PodiumBoard({
+  classesByGrade,
+  classComputed,
+  rankingsVisible,
+}: {
+  classesByGrade: Map<number, ClassRow[]>;
+  classComputed: ClassComputed;
+  rankingsVisible: boolean;
+}) {
+  if (!rankingsVisible) {
+    return <HiddenNotice />;
+  }
+
+  const grades = [...classesByGrade.keys()].sort();
+
+  return (
+    <div className="space-y-6">
+      {grades.map((grade) => (
+        <GradeSection
+          key={grade}
+          grade={grade}
+          list={classesByGrade.get(grade)!}
+          classComputed={classComputed}
+        />
+      ))}
     </div>
   );
 }

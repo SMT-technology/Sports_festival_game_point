@@ -78,7 +78,7 @@ export function ResultsClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">🎉 실시간 현재 순위</h1>
+          <h1 className="text-lg font-bold text-slate-900">🏆 학년별 종합 순위</h1>
           <p className="mt-1 text-xs text-slate-500">
             최종 제출된 점수만 집계됩니다 · {lastUpdate.toLocaleTimeString("ko-KR")} 기준 갱신
           </p>

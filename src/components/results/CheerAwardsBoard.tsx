@@ -29,7 +29,7 @@ export function CheerAwardsBoard({
             <div key={grade} className="rounded-lg bg-white p-3 shadow-sm">
               <p className="mb-2 text-sm font-bold text-slate-700">{grade}학년</p>
               <div className="space-y-1">
-                {ranked.slice(0, 5).map((c, i) => (
+                {ranked.map((c, i) => (
                   <div key={c.id} className="flex items-center justify-between text-xs">
                     <span>
                       {MEDAL[i] ?? `${i + 1}위`} {classLabel(c)}
