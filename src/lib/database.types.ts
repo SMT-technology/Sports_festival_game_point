@@ -105,6 +105,11 @@ export interface EventLocation {
   created_at: string;
 }
 
+export interface AppSecrets {
+  id: number;
+  public_results_token: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -172,6 +177,12 @@ export interface Database {
         Row: EventLocation;
         Insert: Partial<EventLocation> & { name: string };
         Update: Partial<EventLocation>;
+        Relationships: [];
+      };
+      app_secrets: {
+        Row: AppSecrets;
+        Insert: Partial<AppSecrets>;
+        Update: Partial<AppSecrets>;
         Relationships: [];
       };
     };

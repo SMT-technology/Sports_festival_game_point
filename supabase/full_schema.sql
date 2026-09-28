@@ -1,24 +1,24 @@
 -- ============================================================================
 -- 신도체육한마당 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0024_teacher_password_no_forced_change.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0025_public_results_link.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
 -- - "완전히 새로운 Supabase 프로젝트"에 처음 설치할 때, 또는 DB를 완전히
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
---   실행하면 끝 — 0001~0024를 하나씩 실행할 필요가 없습니다)
--- - 이미 0001~0024 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
+--   실행하면 끝 — 0001~0025를 하나씩 실행할 필요가 없습니다)
+-- - 이미 0001~0025 중 일부를 실행해서 사용 중인(진행 중인) 프로젝트라면,
 --   기존처럼 아직 실행 안 한 번호(0001부터 순서대로, 없는 파일만)를 계속
 --   이어서 실행하는 걸 권장합니다. 이 파일은 각 객체를 "있으면 건너뛰고,
 --   없으면 최신 형태로 만드는" 방식으로 작성되어 있어 기존 프로젝트에
 --   다시 실행해도 안전(idempotent)하지만, 0004/0009/0011처럼 과거의
 --   "잘못 들어간 데이터를 정리"하는 단계는 포함하지 않습니다 — 그런 정리는
---   이미 0001~0024를 순서대로 실행하며 끝난 것으로 간주합니다.
--- - 0001~0024 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
+--   이미 0001~0025를 순서대로 실행하며 끝난 것으로 간주합니다.
+-- - 0001~0025 개별 파일은 지우지 않고 그대로 둡니다. 이 파일은 그 파일들을
 --   대체하는 게 아니라, "새 프로젝트를 한 번에 세팅하기 위한 요약본"입니다.
---   앞으로 새 기능을 추가할 때는 여전히 0025, 0026...처럼 번호를 이어서
+--   앞으로 새 기능을 추가할 때는 여전히 0026, 0027...처럼 번호를 이어서
 --   새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- ============================================================================
 
@@ -345,6 +345,23 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
+-- app_secrets: 관리자만 볼 수 있는 비공개 설정값 (싱글턴 1행)
+--
+-- app_settings는 로그인 화면에서 대회 이름/로고를 보여주려고 누구나 조회
+-- 가능하게 열려 있어서, 비밀로 유지해야 하는 값(공개 결과 링크 토큰 등)은
+-- 여기 별도 테이블에 넣고 관리자만 조회/수정하게 막는다.
+-- ----------------------------------------------------------------------------
+create table if not exists public.app_secrets (
+  id int primary key default 1,
+  public_results_token text not null default encode(gen_random_bytes(16), 'hex'),
+  constraint app_secrets_singleton check (id = 1)
+);
+
+insert into public.app_secrets (id)
+values (1)
+on conflict (id) do nothing;
+
+-- ----------------------------------------------------------------------------
 -- cheer_awards: 응원/질서 점수 누적 지급 기록 (종합 순위와 완전히 별도 집계)
 -- ----------------------------------------------------------------------------
 create table if not exists public.cheer_awards (
@@ -663,6 +680,17 @@ for select using (true);
 
 drop policy if exists "app_settings_update_admin_only" on public.app_settings;
 create policy "app_settings_update_admin_only" on public.app_settings
+for update using (public.is_admin()) with check (public.is_admin());
+
+-- app_secrets ----------------------------------------------------------------
+alter table public.app_secrets enable row level security;
+
+drop policy if exists "app_secrets_select_admin_only" on public.app_secrets;
+create policy "app_secrets_select_admin_only" on public.app_secrets
+for select using (public.is_admin());
+
+drop policy if exists "app_secrets_update_admin_only" on public.app_secrets;
+create policy "app_secrets_update_admin_only" on public.app_secrets
 for update using (public.is_admin()) with check (public.is_admin());
 
 -- cheer_awards ---------------------------------------------------------------

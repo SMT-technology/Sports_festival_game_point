@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { driveShareLinkToDirectUrl } from "@/lib/googleDrive";
 
@@ -143,6 +143,91 @@ function LocationSearch({
   );
 }
 
+function PublicResultsLink({ initialToken }: { initialToken: string }) {
+  const [token, setToken] = useState(initialToken);
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const readOrigin = () => setOrigin(window.location.origin);
+    readOrigin();
+  }, []);
+
+  const url = token ? `${origin}/public-results/${token}` : "";
+
+  async function issue(confirmMessage?: string) {
+    if (confirmMessage && !confirm(confirmMessage)) return;
+    setBusy(true);
+    setError(null);
+    const newToken = crypto.randomUUID().replace(/-/g, "");
+    const supabase = createClient();
+    const { error: updateError } = await supabase
+      .from("app_secrets")
+      .update({ public_results_token: newToken })
+      .eq("id", 1);
+    setBusy(false);
+    if (updateError) {
+      setError("발급 실패: " + updateError.message);
+      return;
+    }
+    setToken(newToken);
+  }
+
+  async function copy() {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (!token) {
+    return (
+      <button
+        type="button"
+        onClick={() => issue()}
+        disabled={busy}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+      >
+        {busy ? "만드는 중..." : "공개 링크 만들기"}
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        <input
+          readOnly
+          value={url}
+          onFocus={(e) => e.target.select()}
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs"
+        />
+        <button
+          type="button"
+          onClick={copy}
+          className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        >
+          {copied ? "복사됨!" : "링크 복사"}
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          issue(
+            "새 링크를 발급하면 기존에 공유했던 링크는 더 이상 작동하지 않아요. 계속할까요?",
+          )
+        }
+        disabled={busy}
+        className="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50"
+      >
+        {busy ? "발급 중..." : "새 링크 발급 (기존 링크는 무효화됩니다)"}
+      </button>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 export function SettingsClient({
   initialOrgName,
   initialLogoUrl,
@@ -150,6 +235,7 @@ export function SettingsClient({
   initialWeatherLat,
   initialWeatherLon,
   initialWeatherLocationName,
+  initialPublicResultsToken,
 }: {
   initialOrgName: string;
   initialLogoUrl: string;
@@ -157,6 +243,7 @@ export function SettingsClient({
   initialWeatherLat: number;
   initialWeatherLon: number;
   initialWeatherLocationName: string;
+  initialPublicResultsToken: string;
 }) {
   const [orgName, setOrgName] = useState(initialOrgName);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
@@ -325,6 +412,20 @@ export function SettingsClient({
           {saving ? "저장 중..." : "저장"}
         </button>
         {message && <p className="text-sm text-slate-600">{message}</p>}
+      </div>
+
+      <div className="max-w-lg rounded-xl border border-slate-200 bg-white p-5">
+        <label className="block text-sm font-medium text-slate-700">
+          공개 결과 링크 (담임선생님·교직원용, 로그인 불필요)
+        </label>
+        <p className="mt-1 text-xs text-slate-400">
+          이 링크로 들어가면 로그인 없이 &ldquo;학년별 종합 순위&rdquo;만 실시간으로 볼 수
+          있어요. 링크 자체가 비밀번호 역할을 하니, 필요한 분들에게만 전달해주세요. 링크가
+          퍼졌거나 더 이상 못 쓰게 하고 싶으면 아래에서 새로 발급할 수 있어요.
+        </p>
+        <div className="mt-2">
+          <PublicResultsLink initialToken={initialPublicResultsToken} />
+        </div>
       </div>
     </div>
   );
