@@ -72,6 +72,21 @@ export function useResultsData(initial: {
           return copy;
         });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "cheer_awards" }, (payload) => {
+        setLastUpdate(new Date());
+        setAwards((prev) => {
+          if (payload.eventType === "DELETE") {
+            const old = payload.old as CheerAward;
+            return prev.filter((a) => a.id !== old.id);
+          }
+          const next = payload.new as CheerAward;
+          const idx = prev.findIndex((a) => a.id === next.id);
+          if (idx === -1) return [...prev, next];
+          const copy = [...prev];
+          copy[idx] = next;
+          return copy;
+        });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, (payload) => {
         if (payload.eventType === "DELETE") return;
         const next = payload.new as EventRow;
