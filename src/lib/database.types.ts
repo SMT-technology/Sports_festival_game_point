@@ -49,13 +49,6 @@ export interface EventRow {
   created_at: string;
 }
 
-export interface EventAssignment {
-  id: string;
-  event_id: string;
-  teacher_id: string;
-  created_at: string;
-}
-
 export interface ScoreRow {
   id: string;
   school_id: string;
@@ -154,20 +147,6 @@ export interface Database {
         };
         Update: Partial<EventRow>;
         Relationships: [];
-      };
-      event_assignments: {
-        Row: EventAssignment;
-        Insert: Partial<EventAssignment> & { event_id: string; teacher_id: string };
-        Update: Partial<EventAssignment>;
-        Relationships: [
-          {
-            foreignKeyName: "event_assignments_event_id_fkey";
-            columns: ["event_id"];
-            isOneToOne: false;
-            referencedRelation: "events";
-            referencedColumns: ["id"];
-          },
-        ];
       };
       scores: {
         Row: ScoreRow;

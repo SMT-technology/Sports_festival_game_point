@@ -24,6 +24,13 @@
 -- ----------------------------------------------------------------------------
 -- 0. 기존 데이터 비우기 (의존 관계 역순)
 -- ----------------------------------------------------------------------------
+-- event_assignments: 0005 마이그레이션 이후로 앱에서 전혀 쓰지 않는 레거시
+-- 테이블인데, profiles를 참조하고 있어서 truncate profiles를 막는다. 더
+-- 이상 쓰이지 않으므로 이번 기회에 완전히 제거한다 (school_id도 없어서
+-- 그대로 뒀다간 여러 학교 교사 배정이 뒤섞이는 테이블이 되어버린다).
+drop table if exists public.event_assignments cascade;
+drop function if exists public.is_assigned(uuid);
+
 drop table if exists public.score_audit_log cascade;
 drop table if exists public.scores cascade;
 drop table if exists public.cheer_awards cascade;

@@ -124,17 +124,6 @@ create table if not exists public.events (
 );
 
 -- ----------------------------------------------------------------------------
--- event_assignments: (레거시, 앱에서 더 이상 사용하지 않음 — 하위 호환을 위해 유지)
--- ----------------------------------------------------------------------------
-create table if not exists public.event_assignments (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  teacher_id uuid not null references public.profiles(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  unique (event_id, teacher_id)
-);
-
--- ----------------------------------------------------------------------------
 -- scores: 종목 x 반 점수 (school_id는 event/class와 같은 학교여야 하며, 매
 -- insert 때 트리거가 로그인한 사람의 학교로 자동으로 채운다)
 -- ----------------------------------------------------------------------------
@@ -267,18 +256,6 @@ create or replace trigger trg_set_school_id before insert on public.score_audit_
 for each row execute function public.set_school_id();
 create or replace trigger trg_set_school_id before insert on public.cheer_awards
 for each row execute function public.set_school_id();
-
--- ※ 현재 앱 코드에서는 사용하지 않음(레거시, event_assignments 제도 폐지에 따름).
-create or replace function public.is_assigned(p_event_id uuid)
-returns boolean
-language sql stable
-security definer set search_path = public
-as $$
-  select exists (
-    select 1 from public.event_assignments
-    where event_id = p_event_id and teacher_id = auth.uid()
-  );
-$$;
 
 -- ※ 관리자 화면의 "입력 잠금" UI는 제거됨. 정책 호환을 위해 함수는 남겨둠(항상 해제 상태로 취급).
 create or replace function public.event_is_locked(p_event_id uuid)
@@ -422,7 +399,6 @@ alter table public.schools enable row level security;
 alter table public.profiles enable row level security;
 alter table public.classes enable row level security;
 alter table public.events enable row level security;
-alter table public.event_assignments enable row level security;
 alter table public.scores enable row level security;
 alter table public.score_audit_log enable row level security;
 alter table public.app_settings enable row level security;
@@ -520,16 +496,6 @@ for all using (
 ) with check (
   (public.is_admin() and school_id = public.current_school_id()) or public.is_super_admin()
 );
-
--- event_assignments ------------------------------------------------------
-drop policy if exists "assignments_select_own_or_admin" on public.event_assignments;
-create policy "assignments_select_own_or_admin" on public.event_assignments
-for select using (teacher_id = auth.uid() or public.is_admin() or public.is_super_admin());
-
-drop policy if exists "assignments_write_admin_only" on public.event_assignments;
-create policy "assignments_write_admin_only" on public.event_assignments
-for all using (public.is_admin() or public.is_super_admin())
-with check (public.is_admin() or public.is_super_admin());
 
 -- scores ---------------------------------------------------------------
 drop policy if exists "scores_select_same_school" on public.scores;
