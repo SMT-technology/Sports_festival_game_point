@@ -143,7 +143,13 @@ function LocationSearch({
   );
 }
 
-function PublicResultsLink({ initialToken }: { initialToken: string }) {
+function PublicResultsLink({
+  schoolId,
+  initialToken,
+}: {
+  schoolId: string;
+  initialToken: string;
+}) {
   const [token, setToken] = useState(initialToken);
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
@@ -166,7 +172,7 @@ function PublicResultsLink({ initialToken }: { initialToken: string }) {
     const { error: updateError } = await supabase
       .from("app_secrets")
       .update({ public_results_token: newToken })
-      .eq("id", 1);
+      .eq("school_id", schoolId);
     setBusy(false);
     if (updateError) {
       setError("발급 실패: " + updateError.message);
@@ -229,6 +235,7 @@ function PublicResultsLink({ initialToken }: { initialToken: string }) {
 }
 
 export function SettingsClient({
+  schoolId,
   initialOrgName,
   initialLogoUrl,
   initialTimetableUrl,
@@ -237,6 +244,7 @@ export function SettingsClient({
   initialWeatherLocationName,
   initialPublicResultsToken,
 }: {
+  schoolId: string;
   initialOrgName: string;
   initialLogoUrl: string;
   initialTimetableUrl: string;
@@ -274,7 +282,7 @@ export function SettingsClient({
         weather_lon: weatherLon,
         weather_location_name: weatherLocationName.trim() || "서울",
       })
-      .eq("id", 1);
+      .eq("school_id", schoolId);
     setSaving(false);
     if (error) {
       setMessage("저장 실패: " + error.message);
@@ -424,7 +432,7 @@ export function SettingsClient({
           퍼졌거나 더 이상 못 쓰게 하고 싶으면 아래에서 새로 발급할 수 있어요.
         </p>
         <div className="mt-2">
-          <PublicResultsLink initialToken={initialPublicResultsToken} />
+          <PublicResultsLink schoolId={schoolId} initialToken={initialPublicResultsToken} />
         </div>
       </div>
     </div>

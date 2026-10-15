@@ -10,12 +10,33 @@ export async function requireAdminApi() {
 
   const { data: profile } = await supabase
     .from("profiles")
+    .select("role, school_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin" || !profile.school_id) {
+    return { ok: false as const, status: 403, error: "관리자만 접근할 수 있습니다." };
+  }
+
+  return { ok: true as const, userId: user.id, schoolId: profile.school_id as string };
+}
+
+export async function requireSuperAdminApi() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false as const, status: 401, error: "로그인이 필요합니다." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
-    return { ok: false as const, status: 403, error: "관리자만 접근할 수 있습니다." };
+  if (profile?.role !== "super_admin") {
+    return { ok: false as const, status: 403, error: "총괄자만 접근할 수 있습니다." };
   }
 
   return { ok: true as const, userId: user.id };

@@ -15,10 +15,10 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.createUser({
-    email: nameToTeacherEmail(name),
+    email: nameToTeacherEmail(guard.schoolId, name),
     password: pinToTeacherPassword(DEFAULT_TEACHER_PIN),
     email_confirm: true,
-    user_metadata: { name: name.trim() },
+    user_metadata: { name: name.trim(), school_id: guard.schoolId, role: "teacher" },
   });
 
   if (error) {

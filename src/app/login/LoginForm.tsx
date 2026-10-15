@@ -25,6 +25,7 @@ function describeAuthError(message: string, role: "teacher" | "admin") {
 }
 
 interface LoginFormProps {
+  schoolId: string;
   orgName: string;
   logoUrl: string;
   weatherLat: number;
@@ -41,6 +42,7 @@ export function LoginForm(props: LoginFormProps) {
 }
 
 function LoginFormInner({
+  schoolId,
   orgName,
   logoUrl,
   weatherLat,
@@ -69,7 +71,7 @@ function LoginFormInner({
         setError("비밀번호는 숫자 4자리로 입력하세요.");
         return;
       }
-      loginEmail = nameToTeacherEmail(name);
+      loginEmail = nameToTeacherEmail(schoolId, name);
       loginPassword = pinToTeacherPassword(pin);
     } else {
       loginEmail = email;

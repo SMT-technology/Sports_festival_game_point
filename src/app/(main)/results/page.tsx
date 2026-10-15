@@ -5,7 +5,8 @@ import type { AppSettings, CheerAward, ClassRow, EventRow, ScoreRow } from "@/li
 import { ResultsClient } from "./ResultsClient";
 
 export default async function ResultsPage() {
-  await requireProfile();
+  const profile = await requireProfile();
+  const schoolId = profile.school_id as string;
   const supabase = await createClient();
 
   const [
@@ -18,7 +19,7 @@ export default async function ResultsPage() {
     supabase.from("classes").select("*"),
     supabase.from("events").select("*").eq("is_active", true),
     supabase.from("scores").select("*"),
-    supabase.from("app_settings").select("*").eq("id", 1).single(),
+    supabase.from("app_settings").select("*").eq("school_id", schoolId).single(),
     supabase.from("cheer_awards").select("*"),
   ]);
 
@@ -26,6 +27,7 @@ export default async function ResultsPage() {
 
   return (
     <ResultsClient
+      schoolId={schoolId}
       initialClasses={sortClasses((classesData ?? []) as ClassRow[])}
       initialEvents={sortEvents((eventsData ?? []) as EventRow[])}
       initialScores={(scoresData ?? []) as ScoreRow[]}

@@ -8,12 +8,14 @@ import type { AppSettings, CheerAward, EventRow, ScoreRow } from "@/lib/database
 // 보고 있어야 하므로, 실시간 구독 + 새로고침 로직을 한 군데에 모아서
 // 두 화면이 함께 쓴다.
 export function useResultsData(initial: {
+  schoolId: string;
   scores: ScoreRow[];
   events: EventRow[];
   awards: CheerAward[];
   rankingsVisible: boolean;
   cheerResultsVisible: boolean;
 }) {
+  const { schoolId } = initial;
   const [scores, setScores] = useState<ScoreRow[]>(initial.scores);
   const [events, setEvents] = useState<EventRow[]>(initial.events);
   const [awards, setAwards] = useState<CheerAward[]>(initial.awards);
@@ -30,7 +32,7 @@ export function useResultsData(initial: {
       await Promise.all([
         supabase.from("scores").select("*"),
         supabase.from("events").select("*").eq("is_active", true),
-        supabase.from("app_settings").select("*").eq("id", 1).single(),
+        supabase.from("app_settings").select("*").eq("school_id", schoolId).single(),
         supabase.from("cheer_awards").select("*"),
       ]);
     if (scoresData) setScores(scoresData as ScoreRow[]);
@@ -48,7 +50,10 @@ export function useResultsData(initial: {
     patch: Partial<Pick<AppSettings, "rankings_visible" | "cheer_results_visible">>,
   ) {
     const supabase = createClient();
-    const { error } = await supabase.from("app_settings").update(patch).eq("id", 1);
+    const { error } = await supabase
+      .from("app_settings")
+      .update(patch)
+      .eq("school_id", schoolId);
     return error;
   }
 
@@ -100,7 +105,12 @@ export function useResultsData(initial: {
       })
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "app_settings" },
+        {
+          event: "*",
+          schema: "public",
+          table: "app_settings",
+          filter: `school_id=eq.${schoolId}`,
+        },
         (payload) => {
           const next = payload.new as AppSettings;
           if (typeof next?.rankings_visible === "boolean") {
@@ -116,7 +126,7 @@ export function useResultsData(initial: {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [schoolId]);
 
   return {
     scores,

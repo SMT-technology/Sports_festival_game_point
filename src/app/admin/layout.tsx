@@ -4,7 +4,8 @@ import { NavBar } from "@/components/NavBar";
 import { AdminTabs } from "@/components/AdminTabs";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [profile, branding] = await Promise.all([requireAdmin(), getBranding()]);
+  const profile = await requireAdmin();
+  const branding = await getBranding(profile.school_id as string);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">

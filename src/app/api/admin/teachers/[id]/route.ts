@@ -21,6 +21,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   const admin = createAdminClient();
+
+  const { data: existing } = await admin.from("profiles").select("*").eq("id", id).single();
+  const existingProfile = existing as Profile | null;
+  if (!existingProfile) {
+    return NextResponse.json({ error: "계정을 찾을 수 없습니다." }, { status: 404 });
+  }
+  if (existingProfile.school_id !== guard.schoolId) {
+    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+
   const { error } = await admin.auth.admin.deleteUser(id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
@@ -46,13 +56,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const admin = createAdminClient();
 
-  if (role !== undefined) {
-    const { data: existing } = await admin.from("profiles").select("*").eq("id", id).single();
-    const existingProfile = existing as Profile | null;
-    if (!existingProfile) {
-      return NextResponse.json({ error: "계정을 찾을 수 없습니다." }, { status: 404 });
-    }
+  const { data: existing } = await admin.from("profiles").select("*").eq("id", id).single();
+  const existingProfile = existing as Profile | null;
+  if (!existingProfile) {
+    return NextResponse.json({ error: "계정을 찾을 수 없습니다." }, { status: 404 });
+  }
+  if (existingProfile.school_id !== guard.schoolId) {
+    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
 
+  if (role !== undefined) {
     if (role === "admin") {
       // 교사(성함+PIN) 계정을 관리자로 승격할 때는, 관리자 로그인 화면에서 쓸
       // 실제 이메일과 새 비밀번호를 반드시 함께 받는다 — 그렇지 않으면 내부용
@@ -92,7 +105,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       // PIN"으로 되돌려야 한다. 그대로 두면 profiles.role만 teacher가 되고
       // 실제 로그인 이메일/비밀번호는 관리자 시절 값 그대로 남아 화면에
       // 안내된 로그인 방식과 실제 계정 상태가 어긋난다.
-      const newEmail = nameToTeacherEmail(existingProfile.name);
+      const newEmail = nameToTeacherEmail(existingProfile.school_id as string, existingProfile.name);
       const { error: authError } = await admin.auth.admin.updateUserById(id, {
         email: newEmail,
         password: pinToTeacherPassword(DEFAULT_TEACHER_PIN),
@@ -123,14 +136,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "이름을 입력하세요." }, { status: 400 });
     }
 
-    const { data: existing } = await admin.from("profiles").select("*").eq("id", id).single();
-    const existingProfile = existing as Profile | null;
+    const { data: refetched } = await admin.from("profiles").select("*").eq("id", id).single();
+    const currentProfile = refetched as Profile | null;
 
     // 교사 계정은 이름으로 로그인용 내부 이메일을 만들기 때문에, 이름이
     // 바뀌면 로그인용 이메일도 함께 바꿔줘야 새 이름으로 로그인할 수 있다.
     // 관리자 계정은 실제 이메일로 로그인하므로 이름만 바꾸고 이메일은 그대로 둔다.
-    if (existingProfile?.role === "teacher") {
-      const newEmail = nameToTeacherEmail(trimmed);
+    if (currentProfile?.role === "teacher") {
+      const newEmail = nameToTeacherEmail(currentProfile.school_id as string, trimmed);
       const { error } = await admin.auth.admin.updateUserById(id, { email: newEmail });
       if (error) {
         if (error.message.toLowerCase().includes("already registered")) {

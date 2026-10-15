@@ -29,3 +29,9 @@ export async function requireAdmin(): Promise<Profile> {
   if (profile.role !== "admin") redirect("/results");
   return profile;
 }
+
+export async function requireSuperAdmin(): Promise<Profile> {
+  const profile = await requireProfile();
+  if (profile.role !== "super_admin") redirect("/results");
+  return profile;
+}

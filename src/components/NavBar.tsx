@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DateWeatherCompact } from "@/components/DateWeatherWidget";
+import type { Role } from "@/lib/database.types";
 
 const LINKS = [
   { href: "/input", label: "📝 입력" },
@@ -25,7 +26,7 @@ export function NavBar({
   weatherLocationName,
 }: {
   name: string;
-  role: "teacher" | "admin";
+  role: Role;
   orgName: string;
   logoUrl: string;
   timetableUrl?: string;

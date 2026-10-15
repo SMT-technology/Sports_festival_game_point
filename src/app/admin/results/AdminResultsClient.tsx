@@ -16,6 +16,7 @@ import { useResultsData } from "@/components/results/useResultsData";
 import type { ClassComputed } from "@/components/results/types";
 
 export function AdminResultsClient({
+  schoolId,
   initialClasses,
   initialEvents,
   initialScores,
@@ -24,6 +25,7 @@ export function AdminResultsClient({
   cheerAwards,
   locations,
 }: {
+  schoolId: string;
   initialClasses: ClassRow[];
   initialEvents: EventRow[];
   initialScores: ScoreRow[];
@@ -44,6 +46,7 @@ export function AdminResultsClient({
     refresh,
     updateSettings,
   } = useResultsData({
+    schoolId,
     scores: initialScores,
     events: initialEvents,
     awards: cheerAwards,

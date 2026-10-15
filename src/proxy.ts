@@ -40,8 +40,13 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && path === "/login") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
     const url = request.nextUrl.clone();
-    url.pathname = "/input";
+    url.pathname = profile?.role === "super_admin" ? "/super/schools" : "/input";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -52,6 +57,25 @@ export async function proxy(request: NextRequest) {
       .select("role, must_change_password")
       .eq("id", user.id)
       .single();
+
+    // 총괄자는 특정 학교에 속하지 않으므로 학교별 화면(입력/응원/관리자 등)
+    // 대신 총괄자 전용 화면(/super)으로만 다닐 수 있게 한다.
+    if (profile?.role === "super_admin") {
+      if (!path.startsWith("/super")) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/super/schools";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+      return response;
+    }
+
+    if (path.startsWith("/super")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/input";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
 
     if (profile?.must_change_password && path !== "/change-password") {
       const url = request.nextUrl.clone();

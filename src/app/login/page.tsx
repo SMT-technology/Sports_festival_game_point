@@ -1,15 +1,5 @@
-import { getBranding } from "@/lib/settings";
-import { LoginForm } from "./LoginForm";
+import { SuperAdminLoginForm } from "./SuperAdminLoginForm";
 
-export default async function LoginPage() {
-  const { orgName, logoUrl, weatherLat, weatherLon, weatherLocationName } = await getBranding();
-  return (
-    <LoginForm
-      orgName={orgName}
-      logoUrl={logoUrl}
-      weatherLat={weatherLat}
-      weatherLon={weatherLon}
-      weatherLocationName={weatherLocationName}
-    />
-  );
+export default function LoginPage() {
+  return <SuperAdminLoginForm />;
 }

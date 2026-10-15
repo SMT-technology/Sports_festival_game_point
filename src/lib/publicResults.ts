@@ -30,28 +30,41 @@ export async function getPublicResultsData(token: string): Promise<PublicResults
   if (!token) return null;
 
   const admin = createAdminClient();
-  const [{ data: secretsData }, { data: settingsData }] = await Promise.all([
-    admin.from("app_secrets").select("*").eq("id", 1).single(),
-    admin.from("app_settings").select("*").eq("id", 1).single(),
-  ]);
+  // 토큰은 학교마다 따로 발급되므로, 먼저 토큰으로 어느 학교의 행인지부터
+  // 찾는다 — school_id를 모르는 상태라 eq("school_id", ...)로 미리 좁힐 수
+  // 없다. 토큰이 일치하는 행을 찾으면 그 행의 school_id로 이후 모든 조회를
+  // 스코프한다.
+  const { data: secretsData } = await admin
+    .from("app_secrets")
+    .select("*")
+    .eq("public_results_token", token)
+    .maybeSingle();
   const secrets = secretsData as AppSecrets | null;
-  const settings = settingsData as AppSettings | null;
 
   if (!secrets?.public_results_token || secrets.public_results_token !== token) {
     return null;
   }
 
+  const schoolId = secrets.school_id;
+
+  const { data: settingsData } = await admin
+    .from("app_settings")
+    .select("*")
+    .eq("school_id", schoolId)
+    .single();
+  const settings = settingsData as AppSettings | null;
+
   const rankingsVisible = settings?.rankings_visible ?? true;
   const cheerResultsVisible = settings?.cheer_results_visible ?? false;
 
   const [classesRes, eventsRes, scoresRes, cheerRes] = await Promise.all([
-    admin.from("classes").select("*"),
-    admin.from("events").select("*").eq("is_active", true),
+    admin.from("classes").select("*").eq("school_id", schoolId),
+    admin.from("events").select("*").eq("school_id", schoolId).eq("is_active", true),
     rankingsVisible
-      ? admin.from("scores").select("*").eq("status", "final")
+      ? admin.from("scores").select("*").eq("school_id", schoolId).eq("status", "final")
       : Promise.resolve({ data: [] as ScoreRow[] }),
     cheerResultsVisible
-      ? admin.from("cheer_awards").select("*")
+      ? admin.from("cheer_awards").select("*").eq("school_id", schoolId)
       : Promise.resolve({ data: [] as CheerAward[] }),
   ]);
 

@@ -8,6 +8,7 @@ import { useResultsData } from "@/components/results/useResultsData";
 import type { ClassComputed } from "@/components/results/types";
 
 export function ResultsClient({
+  schoolId,
   initialClasses,
   initialEvents,
   initialScores,
@@ -15,6 +16,7 @@ export function ResultsClient({
   initialCheerResultsVisible,
   cheerAwards,
 }: {
+  schoolId: string;
   initialClasses: ClassRow[];
   initialEvents: EventRow[];
   initialScores: ScoreRow[];
@@ -24,6 +26,7 @@ export function ResultsClient({
 }) {
   const { scores, events, awards, rankingsVisible, cheerResultsVisible, lastUpdate, live, refreshing, refresh } =
     useResultsData({
+      schoolId,
       scores: initialScores,
       events: initialEvents,
       awards: cheerAwards,

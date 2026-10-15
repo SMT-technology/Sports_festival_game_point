@@ -3,7 +3,8 @@ import { getBranding } from "@/lib/settings";
 import { NavBar } from "@/components/NavBar";
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const [profile, branding] = await Promise.all([requireProfile(), getBranding()]);
+  const profile = await requireProfile();
+  const branding = await getBranding(profile.school_id as string);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-orange-50">

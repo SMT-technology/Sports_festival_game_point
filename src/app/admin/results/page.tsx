@@ -12,7 +12,8 @@ import type {
 import { AdminResultsClient } from "./AdminResultsClient";
 
 export default async function AdminResultsPage() {
-  await requireAdmin();
+  const profile = await requireAdmin();
+  const schoolId = profile.school_id as string;
   const supabase = await createClient();
 
   const [
@@ -26,7 +27,7 @@ export default async function AdminResultsPage() {
     supabase.from("classes").select("*"),
     supabase.from("events").select("*").eq("is_active", true),
     supabase.from("scores").select("*"),
-    supabase.from("app_settings").select("*").eq("id", 1).single(),
+    supabase.from("app_settings").select("*").eq("school_id", schoolId).single(),
     supabase.from("cheer_awards").select("*"),
     supabase.from("event_locations").select("*"),
   ]);
@@ -35,6 +36,7 @@ export default async function AdminResultsPage() {
 
   return (
     <AdminResultsClient
+      schoolId={schoolId}
       initialClasses={sortClasses((classesData ?? []) as ClassRow[])}
       initialEvents={sortEvents((eventsData ?? []) as EventRow[])}
       initialScores={(scoresData ?? []) as ScoreRow[]}

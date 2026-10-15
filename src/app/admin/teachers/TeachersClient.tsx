@@ -7,9 +7,11 @@ import { DEFAULT_TEACHER_PIN, nameToTeacherEmail } from "@/lib/teacherAuth";
 
 export function TeachersClient({
   currentUserId,
+  schoolId,
   initialProfiles,
 }: {
   currentUserId: string;
+  schoolId: string;
   initialProfiles: Profile[];
 }) {
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
@@ -49,9 +51,10 @@ export function TeachersClient({
       ...prev,
       {
         id: body.id,
-        email: nameToTeacherEmail(form.name),
+        email: nameToTeacherEmail(schoolId, form.name),
         name: form.name.trim(),
         role: "teacher",
+        school_id: schoolId,
         must_change_password: false,
         created_at: new Date().toISOString(),
       },
@@ -91,7 +94,7 @@ export function TeachersClient({
     }
     setProfiles((prev) =>
       prev.map((x) =>
-        x.id === p.id ? { ...x, role: "teacher", email: nameToTeacherEmail(x.name) } : x,
+        x.id === p.id ? { ...x, role: "teacher", email: nameToTeacherEmail(schoolId, x.name) } : x,
       ),
     );
   }
@@ -159,7 +162,11 @@ export function TeachersClient({
     setProfiles((prev) =>
       prev.map((x) =>
         x.id === p.id
-          ? { ...x, name: draft, email: x.role === "teacher" ? nameToTeacherEmail(draft) : x.email }
+          ? {
+              ...x,
+              name: draft,
+              email: x.role === "teacher" ? nameToTeacherEmail(schoolId, draft) : x.email,
+            }
           : x,
       ),
     );

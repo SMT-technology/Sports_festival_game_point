@@ -1,4 +1,4 @@
-export type Role = "teacher" | "admin";
+export type Role = "teacher" | "admin" | "super_admin";
 export type ScoringType = "rank" | "pass_fail" | "direct" | "tier";
 
 export interface TierOption {
@@ -7,17 +7,26 @@ export interface TierOption {
 }
 export type ScoreStatus = "draft" | "final";
 
+export interface School {
+  id: string;
+  slug: string;
+  name: string;
+  created_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
   name: string;
   role: Role;
+  school_id: string | null;
   must_change_password: boolean;
   created_at: string;
 }
 
 export interface ClassRow {
   id: string;
+  school_id: string;
   grade: 1 | 2 | 3;
   class_no: number;
   created_at: string;
@@ -25,6 +34,7 @@ export interface ClassRow {
 
 export interface EventRow {
   id: string;
+  school_id: string;
   name: string;
   category: string;
   scoring_type: ScoringType;
@@ -48,6 +58,7 @@ export interface EventAssignment {
 
 export interface ScoreRow {
   id: string;
+  school_id: string;
   event_id: string;
   class_id: string;
   rank_value: number | null;
@@ -66,6 +77,7 @@ export interface ScoreRow {
 
 export interface ScoreAuditLog {
   id: string;
+  school_id: string;
   score_id: string;
   event_id: string;
   class_id: string;
@@ -77,7 +89,7 @@ export interface ScoreAuditLog {
 }
 
 export interface AppSettings {
-  id: number;
+  school_id: string;
   rankings_visible: boolean;
   cheer_results_visible: boolean;
   org_name: string;
@@ -91,6 +103,7 @@ export interface AppSettings {
 
 export interface CheerAward {
   id: string;
+  school_id: string;
   class_id: string;
   points: number;
   awarded_by: string | null;
@@ -99,6 +112,7 @@ export interface CheerAward {
 
 export interface EventLocation {
   id: string;
+  school_id: string;
   name: string;
   emoji: string;
   order_index: number;
@@ -106,13 +120,19 @@ export interface EventLocation {
 }
 
 export interface AppSecrets {
-  id: number;
+  school_id: string;
   public_results_token: string;
 }
 
 export interface Database {
   public: {
     Tables: {
+      schools: {
+        Row: School;
+        Insert: Partial<School> & { slug: string; name: string };
+        Update: Partial<School>;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: Partial<Profile> & { id: string; email: string; name: string };
@@ -163,7 +183,7 @@ export interface Database {
       };
       app_settings: {
         Row: AppSettings;
-        Insert: Partial<AppSettings>;
+        Insert: Partial<AppSettings> & { school_id: string };
         Update: Partial<AppSettings>;
         Relationships: [];
       };
@@ -181,7 +201,7 @@ export interface Database {
       };
       app_secrets: {
         Row: AppSecrets;
-        Insert: Partial<AppSecrets>;
+        Insert: Partial<AppSecrets> & { school_id: string };
         Update: Partial<AppSecrets>;
         Relationships: [];
       };

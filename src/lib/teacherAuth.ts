@@ -1,17 +1,19 @@
 // 교사 로그인은 이메일 대신 "성함 + 4자리 비밀번호(PIN)"로 이뤄진다.
-// Supabase Auth는 이메일 기반 로그인만 지원하므로, 이름으로부터 결정적으로
-// (같은 이름이면 항상 같은 값이 나오게) 내부용 가짜 이메일을 만들어 쓴다.
-// 그래서 별도의 이름→이메일 조회 없이, 로그인 화면에 입력한 이름만으로
-// 바로 로그인을 시도할 수 있다. 이름이 같으면 이메일도 같아져서 Supabase가
-// "이미 존재하는 이메일"이라고 자동으로 막아주기 때문에, 같은 이름의 계정이
-// 중복 생성되는 것도 자연스럽게 방지된다 (관리자는 겹치는 이름이 있으면
+// Supabase Auth는 이메일 기반 로그인만 지원하므로, (학교, 이름)으로부터
+// 결정적으로(같은 학교의 같은 이름이면 항상 같은 값이 나오게) 내부용 가짜
+// 이메일을 만들어 쓴다. 여러 학교가 하나의 Supabase 프로젝트(= 하나의
+// auth.users 테이블)를 공유하므로, 학교를 해시에 포함하지 않으면 서로 다른
+// 학교의 동명 교사가 같은 이메일로 충돌한다 — school_id를 반드시 같이 넘겨야
+// 한다. 같은 학교 안에서 이름이 같으면 이메일도 같아져서 Supabase가 "이미
+// 존재하는 이메일"이라고 자동으로 막아주기 때문에, 같은 학교의 같은 이름
+// 계정 중복 생성도 자연스럽게 방지된다 (관리자는 겹치는 이름이 있으면
 // "김민수(2반)"처럼 구분해서 등록하면 된다).
 //
 // 이 파일의 함수들은 브라우저(로그인/비밀번호 변경 화면)와 서버(관리자
 // API 라우트) 양쪽에서 동일하게 동작해야 하므로, Node 전용 API(Buffer 등)
 // 대신 TextEncoder만 사용한다.
 
-const TEACHER_EMAIL_DOMAIN = "teacher.sinsports.internal";
+const TEACHER_EMAIL_DOMAIN = "teacher.sports-scoring.internal";
 
 export const DEFAULT_TEACHER_PIN = "1234";
 
@@ -19,9 +21,9 @@ function normalizeTeacherName(name: string): string {
   return name.trim().replace(/\s+/g, " ");
 }
 
-export function nameToTeacherEmail(name: string): string {
+export function nameToTeacherEmail(schoolId: string, name: string): string {
   const normalized = normalizeTeacherName(name);
-  const bytes = new TextEncoder().encode(normalized);
+  const bytes = new TextEncoder().encode(`${schoolId}:${normalized}`);
   const hex = Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");

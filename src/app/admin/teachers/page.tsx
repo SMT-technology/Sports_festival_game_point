@@ -9,5 +9,11 @@ export default async function AdminTeachersPage() {
 
   const { data: profiles } = await supabase.from("profiles").select("*").order("created_at");
 
-  return <TeachersClient currentUserId={me.id} initialProfiles={(profiles ?? []) as Profile[]} />;
+  return (
+    <TeachersClient
+      currentUserId={me.id}
+      schoolId={me.school_id as string}
+      initialProfiles={(profiles ?? []) as Profile[]}
+    />
+  );
 }
