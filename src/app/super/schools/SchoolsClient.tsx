@@ -5,18 +5,25 @@ import Link from "next/link";
 import type { Profile, School } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
+const DEFAULT_LOGO_URL = "/logo.jpg";
+
 export function SchoolsClient({
   initialSchools,
   initialAdmins,
+  initialLogos,
 }: {
   initialSchools: School[];
   initialAdmins: Profile[];
+  initialLogos: Record<string, string>;
 }) {
   const [schools, setSchools] = useState<School[]>(initialSchools);
   const [admins, setAdmins] = useState<Profile[]>(initialAdmins);
+  const [logos, setLogos] = useState<Record<string, string>>(initialLogos);
+  const [logoErrorIds, setLogoErrorIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({
     name: "",
     slug: "",
+    logoUrl: "",
     adminName: "",
     adminEmail: "",
     adminPassword: "",
@@ -26,6 +33,53 @@ export function SchoolsClient({
   const [createdLoginUrl, setCreatedLoginUrl] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
+
+  const [logoEditTarget, setLogoEditTarget] = useState<School | null>(null);
+  const [logoEditUrl, setLogoEditUrl] = useState("");
+  const [logoEditError, setLogoEditError] = useState<string | null>(null);
+  const [logoEditBusy, setLogoEditBusy] = useState(false);
+  const [logoEditDone, setLogoEditDone] = useState(false);
+
+  function openLogoEdit(s: School) {
+    setLogoEditTarget(s);
+    setLogoEditUrl(logos[s.id] ?? "");
+    setLogoEditError(null);
+    setLogoEditDone(false);
+  }
+
+  async function confirmLogoEdit() {
+    if (!logoEditTarget) return;
+    const trimmed = logoEditUrl.trim();
+    if (!trimmed) {
+      setLogoEditError("로고 이미지 URL을 입력하세요.");
+      return;
+    }
+    setLogoEditBusy(true);
+    setLogoEditError(null);
+    try {
+      const res = await fetch(`/api/super/schools/${logoEditTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: trimmed }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setLogoEditError(body?.error ?? "로고 변경에 실패했습니다.");
+        return;
+      }
+      setLogos((prev) => ({ ...prev, [logoEditTarget.id]: trimmed }));
+      setLogoErrorIds((prev) => {
+        const next = new Set(prev);
+        next.delete(logoEditTarget.id);
+        return next;
+      });
+      setLogoEditDone(true);
+    } catch {
+      setLogoEditError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setLogoEditBusy(false);
+    }
+  }
 
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
   const [editEmail, setEditEmail] = useState("");
@@ -112,10 +166,19 @@ export function SchoolsClient({
         setError(body?.error ?? `학교 생성에 실패했습니다. (서버 오류, status ${res.status})`);
         return;
       }
-      setSchools((prev) => [...prev, body.school as School]);
+      const newSchool = body.school as School;
+      setSchools((prev) => [...prev, newSchool]);
       setAdmins((prev) => [...prev, body.admin as Profile]);
+      setLogos((prev) => ({ ...prev, [newSchool.id]: body.logoUrl as string }));
       setCreatedLoginUrl(body.loginUrl as string);
-      setForm({ name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" });
+      setForm({
+        name: "",
+        slug: "",
+        logoUrl: "",
+        adminName: "",
+        adminEmail: "",
+        adminPassword: "",
+      });
     } catch {
       setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
     } finally {
@@ -161,9 +224,34 @@ export function SchoolsClient({
             )}
             {schools.map((s) => {
               const schoolAdmins = admins.filter((a) => a.school_id === s.id);
+              const logoSrc = logoErrorIds.has(s.id)
+                ? DEFAULT_LOGO_URL
+                : logos[s.id] || DEFAULT_LOGO_URL;
               return (
                 <tr key={s.id} className="border-b border-slate-50 align-top">
-                  <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={logoSrc}
+                        alt={`${s.name} 로고`}
+                        className="h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover"
+                        onError={() =>
+                          setLogoErrorIds((prev) => new Set(prev).add(s.id))
+                        }
+                      />
+                      <div>
+                        <p className="font-medium text-slate-800">{s.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => openLogoEdit(s)}
+                          className="text-xs text-slate-400 underline hover:text-slate-600"
+                        >
+                          🖼 로고 변경
+                        </button>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-4 py-2.5">
                     <Link
                       href={`/login/${s.slug}`}
@@ -227,11 +315,24 @@ export function SchoolsClient({
               onChange={(e) =>
                 setForm((f) => ({ ...f, slug: e.target.value.trim().toLowerCase() }))
               }
-              placeholder="예: sindo"
+              placeholder="예: shindo"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
             />
             <p className="mt-1 text-xs text-slate-400">
-              로그인 링크가 /login/{form.slug || "sindo"} 형태로 만들어져요.
+              로그인 링크가 /login/{form.slug || "shindo"} 형태로 만들어져요.
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500">로고 이미지 URL (선택)</label>
+            <input
+              value={form.logoUrl}
+              onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))}
+              placeholder="https://... (비워두면 기본 로고가 쓰여요)"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              나중에 학교 목록에서 언제든 바꿀 수 있어요. 해당 학교 관리자도 직접 설정 화면에서
+              바꿀 수 있어요.
             </p>
           </div>
           <div className="border-t border-slate-100 pt-3">
@@ -351,6 +452,51 @@ export function SchoolsClient({
         onCancel={() => setEditTarget(null)}
         onConfirm={editDone ? () => setEditTarget(null) : confirmEdit}
         loading={editBusy}
+      />
+
+      <ConfirmDialog
+        open={!!logoEditTarget}
+        title={`'${logoEditTarget?.name}' 로고 변경`}
+        description={
+          logoEditDone ? (
+            <p className="text-emerald-700">로고가 변경되었습니다.</p>
+          ) : (
+            <div className="space-y-3">
+              <p>
+                어딘가에 이미지를 먼저 업로드하고, 그 이미지 주소(URL)를 붙여넣으세요. 이
+                로고는 해당 학교의 로그인 화면과 상단 메뉴에 바로 반영돼요.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">
+                  로고 이미지 URL
+                </label>
+                <input
+                  autoFocus
+                  value={logoEditUrl}
+                  onChange={(e) => setLogoEditUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                />
+              </div>
+              {logoEditUrl.trim() && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">미리보기</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoEditUrl.trim()}
+                    alt="로고 미리보기"
+                    className="h-10 w-10 rounded-full border border-slate-200 object-cover"
+                  />
+                </div>
+              )}
+              {logoEditError && <p className="text-xs text-red-600">{logoEditError}</p>}
+            </div>
+          )
+        }
+        confirmLabel={logoEditDone ? "닫기" : "저장"}
+        onCancel={() => setLogoEditTarget(null)}
+        onConfirm={logoEditDone ? () => setLogoEditTarget(null) : confirmLogoEdit}
+        loading={logoEditBusy}
       />
     </div>
   );

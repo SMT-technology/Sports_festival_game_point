@@ -24,11 +24,12 @@ export async function POST(request: Request) {
   const guard = await requireSuperAdminApi();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-  const { name, slug, adminName, adminEmail, adminPassword } = (await request
+  const { name, slug, logoUrl, adminName, adminEmail, adminPassword } = (await request
     .json()
     .catch(() => ({}))) as {
     name?: string;
     slug?: string;
+    logoUrl?: string;
     adminName?: string;
     adminEmail?: string;
     adminPassword?: string;
@@ -88,8 +89,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: authError.message }, { status: 400 });
   }
 
+  const trimmedLogoUrl = logoUrl?.trim();
+
   await Promise.all([
-    admin.from("app_settings").insert({ school_id: schoolId, org_name: name.trim() }),
+    admin.from("app_settings").insert({
+      school_id: schoolId,
+      org_name: name.trim(),
+      ...(trimmedLogoUrl ? { logo_url: trimmedLogoUrl } : {}),
+    }),
     admin.from("app_secrets").insert({ school_id: schoolId }),
     admin.from("classes").insert(defaultClasses(schoolId)),
     admin
@@ -100,6 +107,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     school,
     loginUrl: `/login/${slug}`,
+    logoUrl: trimmedLogoUrl || "/logo.jpg",
     admin: {
       id: authUser.user!.id,
       email: adminEmail.trim(),
