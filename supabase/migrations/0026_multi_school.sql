@@ -46,7 +46,8 @@ drop table if exists public.app_secrets cascade;
 truncate table public.profiles;
 
 -- ----------------------------------------------------------------------------
--- 1. schools: 학교 목록
+-- 1. schools: 학교 목록 (테이블만 먼저 만든다 — 정책은 아래 3번에서,
+--    is_super_admin() 함수가 정의된 뒤에 붙인다)
 -- ----------------------------------------------------------------------------
 create table public.schools (
   id uuid primary key default gen_random_uuid(),
@@ -56,14 +57,6 @@ create table public.schools (
 );
 
 alter table public.schools enable row level security;
-
--- 로그인 화면(slug로 학교 찾기)은 로그인 전이라 공개 조회가 필요하다.
--- 이름/슬러그 자체는 민감 정보가 아니다 (지금의 app_settings 공개 조회와 동일한 원칙).
-create policy "schools_select_public" on public.schools
-for select using (true);
-
-create policy "schools_write_super_admin_only" on public.schools
-for all using (public.is_super_admin()) with check (public.is_super_admin());
 
 -- ----------------------------------------------------------------------------
 -- 2. profiles: school_id 추가 + role에 super_admin 허용
@@ -84,7 +77,41 @@ alter table public.profiles add constraint profiles_school_id_matches_role
   );
 
 -- ----------------------------------------------------------------------------
--- 3. 학교별 테이블 재생성 (school_id 포함)
+-- 3. 핵심 헬퍼 함수 (current_school_id/is_super_admin) — 바로 아래 schools
+--    RLS 정책과 이후 모든 테이블의 정책이 이 함수들을 쓰므로, 다른 테이블의
+--    RLS 정책보다 먼저 정의해야 한다 (정책은 생성 시점에 함수가 이미
+--    존재해야 함). profiles.school_id 컬럼이 막 추가됐으니 그 다음인
+--    여기서 정의한다.
+-- ----------------------------------------------------------------------------
+create or replace function public.current_school_id()
+returns uuid
+language sql stable
+security definer set search_path = public
+as $$
+  select school_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'super_admin'
+  );
+$$;
+
+-- schools RLS 정책 (is_super_admin()이 이제 존재하므로 여기서 붙인다)
+-- 로그인 화면(slug로 학교 찾기)은 로그인 전이라 공개 조회가 필요하다.
+-- 이름/슬러그 자체는 민감 정보가 아니다 (지금의 app_settings 공개 조회와 동일한 원칙).
+create policy "schools_select_public" on public.schools
+for select using (true);
+
+create policy "schools_write_super_admin_only" on public.schools
+for all using (public.is_super_admin()) with check (public.is_super_admin());
+
+-- ----------------------------------------------------------------------------
+-- 4. 학교별 테이블 재생성 (school_id 포함)
 -- ----------------------------------------------------------------------------
 create table public.classes (
   id uuid primary key default gen_random_uuid(),
@@ -167,7 +194,7 @@ create table public.cheer_awards (
 );
 
 -- ----------------------------------------------------------------------------
--- 4. app_settings / app_secrets: 싱글턴(id=1) → 학교당 1행
+-- 5. app_settings / app_secrets: 싱글턴(id=1) → 학교당 1행
 -- ----------------------------------------------------------------------------
 create table public.app_settings (
   school_id uuid primary key references public.schools(id) on delete cascade,
@@ -188,26 +215,8 @@ create table public.app_secrets (
 );
 
 -- ----------------------------------------------------------------------------
--- 5. 헬퍼 함수
+-- 6. 나머지 헬퍼 함수/트리거
 -- ----------------------------------------------------------------------------
-create or replace function public.current_school_id()
-returns uuid
-language sql stable
-security definer set search_path = public
-as $$
-  select school_id from public.profiles where id = auth.uid();
-$$;
-
-create or replace function public.is_super_admin()
-returns boolean
-language sql stable
-security definer set search_path = public
-as $$
-  select exists (
-    select 1 from public.profiles where id = auth.uid() and role = 'super_admin'
-  );
-$$;
-
 -- 매 insert마다 "로그인한 사람의 학교"를 무조건 채워 넣는다 (클라이언트가 다른
 -- school_id를 보내도 무시하고 덮어쓴다 — 다른 학교 데이터로 끼워 넣는 걸 원천 차단).
 create or replace function public.set_school_id()
@@ -272,7 +281,7 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- 6. RLS 재설정
+-- 7. RLS 재설정
 -- ----------------------------------------------------------------------------
 alter table public.classes enable row level security;
 alter table public.event_locations enable row level security;
@@ -432,7 +441,7 @@ for all using (
 );
 
 -- ----------------------------------------------------------------------------
--- 7. Realtime (테이블을 새로 만들었으므로 발행 목록에 다시 추가)
+-- 8. Realtime (테이블을 새로 만들었으므로 발행 목록에 다시 추가)
 -- ----------------------------------------------------------------------------
 alter publication supabase_realtime add table public.scores;
 alter publication supabase_realtime add table public.events;
