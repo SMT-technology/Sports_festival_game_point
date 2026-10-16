@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Profile, School } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -147,7 +148,16 @@ export function SchoolsClient({
               return (
                 <tr key={s.id} className="border-b border-slate-50 align-top">
                   <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
-                  <td className="px-4 py-2.5 text-slate-500">/login/{s.slug}</td>
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/login/${s.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline hover:text-blue-800"
+                    >
+                      /login/{s.slug}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5">
                     {schoolAdmins.length === 0 ? (
                       <span className="text-slate-400">관리자 없음</span>
@@ -268,6 +278,14 @@ export function SchoolsClient({
               >
                 {copied ? "복사됨!" : "링크 복사"}
               </button>
+              <Link
+                href={createdLoginUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+              >
+                열기 ↗
+              </Link>
             </div>
           </div>
         )}
