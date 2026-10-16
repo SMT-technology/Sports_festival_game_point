@@ -36,20 +36,25 @@ export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) 
       return;
     }
     setBusy(true);
-    const res = await fetch("/api/super/schools", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const body = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(body.error ?? "학교 생성에 실패했습니다.");
-      return;
+    try {
+      const res = await fetch("/api/super/schools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error ?? `학교 생성에 실패했습니다. (서버 오류, status ${res.status})`);
+        return;
+      }
+      setSchools((prev) => [...prev, body.school as School]);
+      setCreatedLoginUrl(body.loginUrl as string);
+      setForm({ name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" });
+    } catch {
+      setError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setBusy(false);
     }
-    setSchools((prev) => [...prev, body.school as School]);
-    setCreatedLoginUrl(body.loginUrl as string);
-    setForm({ name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" });
   }
 
   async function copyLoginUrl() {
