@@ -4,22 +4,38 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Profile, School } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { createClient } from "@/lib/supabase/client";
 
 const DEFAULT_LOGO_URL = "/logo.jpg";
+
+function formatRelativeTime(iso: string, now: number): string {
+  const diffSec = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+  if (diffSec < 60) return "방금 전";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  const diffDay = Math.floor(diffHour / 24);
+  return `${diffDay}일 전`;
+}
 
 export function SchoolsClient({
   initialSchools,
   initialAdmins,
   initialLogos,
+  initialLastActivity,
 }: {
   initialSchools: School[];
   initialAdmins: Profile[];
   initialLogos: Record<string, string>;
+  initialLastActivity: Record<string, string>;
 }) {
   const [schools, setSchools] = useState<School[]>(initialSchools);
   const [admins, setAdmins] = useState<Profile[]>(initialAdmins);
   const [logos, setLogos] = useState<Record<string, string>>(initialLogos);
   const [logoErrorIds, setLogoErrorIds] = useState<Set<string>>(new Set());
+  const [lastActivity, setLastActivity] = useState<Record<string, string>>(initialLastActivity);
+  const [now, setNow] = useState(() => Date.now());
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -142,6 +158,55 @@ export function SchoolsClient({
     readOrigin();
   }, []);
 
+  // "최근 활동" 표시를 1분마다 다시 계산해서 "n분 전" 문구가 계속 최신으로
+  // 보이게 한다 (데이터 자체는 realtime 구독으로 바뀌지만, 시간 표시는
+  // 데이터가 안 바뀌어도 흘러가야 하므로 별도 타이머가 필요하다).
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 전체 학교의 점수/응원점수 변경을 실시간으로 구독해서, 어느 학교가 지금
+  // 활발히 쓰이고 있는지 "최근 활동" 칼럼이 새로고침 없이 갱신되게 한다.
+  // 총괄자는 RLS상 모든 학교의 행을 볼 수 있으므로 school_id 필터 없이
+  // 구독한다.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("super-schools-activity")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "scores" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { school_id?: string; updated_at?: string };
+          if (!row.school_id) return;
+          setLastActivity((prev) => ({
+            ...prev,
+            [row.school_id!]: row.updated_at ?? new Date().toISOString(),
+          }));
+          setNow(Date.now());
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cheer_awards" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { school_id?: string; awarded_at?: string };
+          if (!row.school_id) return;
+          setLastActivity((prev) => ({
+            ...prev,
+            [row.school_id!]: row.awarded_at ?? new Date().toISOString(),
+          }));
+          setNow(Date.now());
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   async function createSchool() {
     setError(null);
     if (
@@ -211,13 +276,14 @@ export function SchoolsClient({
               <th className="px-4 py-2">학교 이름</th>
               <th className="px-4 py-2">로그인 주소</th>
               <th className="px-4 py-2">관리자 계정</th>
+              <th className="px-4 py-2">최근 활동</th>
               <th className="px-4 py-2">생성일</th>
             </tr>
           </thead>
           <tbody>
             {schools.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-400">
                   아직 등록된 학교가 없어요. 아래에서 첫 학교를 추가해보세요.
                 </td>
               </tr>
@@ -242,13 +308,21 @@ export function SchoolsClient({
                       />
                       <div>
                         <p className="font-medium text-slate-800">{s.name}</p>
-                        <button
-                          type="button"
-                          onClick={() => openLogoEdit(s)}
-                          className="text-xs text-slate-400 underline hover:text-slate-600"
-                        >
-                          🖼 로고 변경
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/super/schools/${s.id}`}
+                            className="text-xs text-blue-600 underline hover:text-blue-800"
+                          >
+                            📊 현황 보기
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => openLogoEdit(s)}
+                            className="text-xs text-slate-400 underline hover:text-slate-600"
+                          >
+                            🖼 로고 변경
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -282,6 +356,16 @@ export function SchoolsClient({
                           </div>
                         ))}
                       </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {lastActivity[s.id] ? (
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                        {formatRelativeTime(lastActivity[s.id], now)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">활동 없음</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-slate-400">
