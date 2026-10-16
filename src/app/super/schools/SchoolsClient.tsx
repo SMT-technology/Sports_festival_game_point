@@ -27,43 +27,59 @@ export function SchoolsClient({
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const [resetTarget, setResetTarget] = useState<Profile | null>(null);
-  const [resetPassword, setResetPassword] = useState("");
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [resetBusy, setResetBusy] = useState(false);
-  const [resetDone, setResetDone] = useState(false);
+  const [editTarget, setEditTarget] = useState<Profile | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editDone, setEditDone] = useState(false);
 
-  function openReset(p: Profile) {
-    setResetTarget(p);
-    setResetPassword("");
-    setResetError(null);
-    setResetDone(false);
+  function openEdit(p: Profile) {
+    setEditTarget(p);
+    setEditEmail(p.email);
+    setEditPassword("");
+    setEditError(null);
+    setEditDone(false);
   }
 
-  async function confirmReset() {
-    if (!resetTarget) return;
-    if (resetPassword.length < 6) {
-      setResetError("비밀번호는 6자 이상으로 입력하세요.");
+  async function confirmEdit() {
+    if (!editTarget) return;
+    const trimmedEmail = editEmail.trim();
+    const emailChanged = trimmedEmail !== editTarget.email;
+    if (!emailChanged && !editPassword) {
+      setEditError("이메일 또는 비밀번호 중 하나는 바꿔야 해요.");
       return;
     }
-    setResetBusy(true);
-    setResetError(null);
+    if (editPassword && editPassword.length < 6) {
+      setEditError("비밀번호는 6자 이상으로 입력하세요.");
+      return;
+    }
+    setEditBusy(true);
+    setEditError(null);
     try {
-      const res = await fetch(`/api/super/admins/${resetTarget.id}`, {
+      const res = await fetch(`/api/super/admins/${editTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: resetPassword }),
+        body: JSON.stringify({
+          ...(emailChanged ? { email: trimmedEmail } : {}),
+          ...(editPassword ? { password: editPassword } : {}),
+        }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
-        setResetError(body?.error ?? "비밀번호 재설정에 실패했습니다.");
+        setEditError(body?.error ?? "계정 수정에 실패했습니다.");
         return;
       }
-      setResetDone(true);
+      if (emailChanged) {
+        setAdmins((prev) =>
+          prev.map((a) => (a.id === editTarget.id ? { ...a, email: trimmedEmail } : a)),
+        );
+      }
+      setEditDone(true);
     } catch {
-      setResetError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+      setEditError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
     } finally {
-      setResetBusy(false);
+      setEditBusy(false);
     }
   }
 
@@ -170,10 +186,10 @@ export function SchoolsClient({
                             </span>
                             <button
                               type="button"
-                              onClick={() => openReset(a)}
+                              onClick={() => openEdit(a)}
                               className="shrink-0 rounded-lg border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
                             >
-                              🔄 비밀번호 재설정
+                              ⚙️ 이메일/비밀번호 수정
                             </button>
                           </div>
                         ))}
@@ -292,40 +308,49 @@ export function SchoolsClient({
       </div>
 
       <ConfirmDialog
-        open={!!resetTarget}
-        title={`'${resetTarget?.name}' 관리자 비밀번호 재설정`}
+        open={!!editTarget}
+        title={`'${editTarget?.name}' 관리자 계정 수정`}
         description={
-          resetDone ? (
+          editDone ? (
             <p className="text-emerald-700">
-              비밀번호가 변경되었습니다. 새 비밀번호를 해당 관리자에게 전달해주세요.
+              저장되었습니다. 바뀐 이메일/비밀번호를 해당 관리자에게 전달해주세요.
             </p>
           ) : (
             <div className="space-y-3">
               <p>
-                {resetTarget?.email}로 로그인하는 비밀번호를 새로 설정합니다. 기존 비밀번호는
-                더 이상 쓸 수 없게 돼요.
+                오타가 났거나 비밀번호를 잊어버렸을 때 여기서 바로 고칠 수 있어요. 바꿀 항목만
+                입력하세요.
               </p>
               <div>
+                <label className="block text-xs font-medium text-slate-500">이메일</label>
+                <input
+                  type="email"
+                  autoFocus
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-slate-500">
-                  새 비밀번호 (6자 이상)
+                  새 비밀번호 (바꾸지 않으려면 비워두세요, 6자 이상)
                 </label>
                 <input
                   type="text"
-                  autoFocus
-                  value={resetPassword}
-                  onChange={(e) => setResetPassword(e.target.value)}
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
                   placeholder="새 비밀번호"
                 />
               </div>
-              {resetError && <p className="text-xs text-red-600">{resetError}</p>}
+              {editError && <p className="text-xs text-red-600">{editError}</p>}
             </div>
           )
         }
-        confirmLabel={resetDone ? "닫기" : "재설정"}
-        onCancel={() => setResetTarget(null)}
-        onConfirm={resetDone ? () => setResetTarget(null) : confirmReset}
-        loading={resetBusy}
+        confirmLabel={editDone ? "닫기" : "저장"}
+        onCancel={() => setEditTarget(null)}
+        onConfirm={editDone ? () => setEditTarget(null) : confirmEdit}
+        loading={editBusy}
       />
     </div>
   );

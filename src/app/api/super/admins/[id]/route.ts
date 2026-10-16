@@ -3,14 +3,25 @@ import { requireSuperAdminApi } from "@/lib/adminGuard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/database.types";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireSuperAdminApi();
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;
-  const { password } = (await request.json().catch(() => ({}))) as { password?: string };
+  const { email, password } = (await request.json().catch(() => ({}))) as {
+    email?: string;
+    password?: string;
+  };
 
-  if (!password || password.length < 6) {
+  if (!email && !password) {
+    return NextResponse.json({ error: "변경할 이메일 또는 비밀번호를 입력하세요." }, { status: 400 });
+  }
+  if (email !== undefined && !EMAIL_RE.test(email.trim())) {
+    return NextResponse.json({ error: "유효한 이메일 주소를 입력하세요." }, { status: 400 });
+  }
+  if (password !== undefined && password.length < 6) {
     return NextResponse.json({ error: "비밀번호는 6자 이상으로 입력하세요." }, { status: 400 });
   }
 
@@ -22,11 +33,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "계정을 찾을 수 없습니다." }, { status: 404 });
   }
   if (existingProfile.role !== "admin") {
-    return NextResponse.json({ error: "학교 관리자 계정만 재설정할 수 있습니다." }, { status: 400 });
+    return NextResponse.json({ error: "학교 관리자 계정만 수정할 수 있습니다." }, { status: 400 });
   }
 
-  const { error } = await admin.auth.admin.updateUserById(id, { password });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  const trimmedEmail = email?.trim();
 
-  return NextResponse.json({ ok: true });
+  const { error: authError } = await admin.auth.admin.updateUserById(id, {
+    ...(trimmedEmail ? { email: trimmedEmail } : {}),
+    ...(password ? { password } : {}),
+  });
+  if (authError) {
+    if (authError.message.toLowerCase().includes("already registered")) {
+      return NextResponse.json({ error: "이미 사용 중인 이메일입니다." }, { status: 400 });
+    }
+    return NextResponse.json({ error: authError.message }, { status: 400 });
+  }
+
+  if (trimmedEmail) {
+    const { error: profileError } = await admin
+      .from("profiles")
+      .update({ email: trimmedEmail })
+      .eq("id", id);
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true, email: trimmedEmail ?? existingProfile.email });
 }

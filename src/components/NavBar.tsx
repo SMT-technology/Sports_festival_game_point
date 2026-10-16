@@ -18,6 +18,7 @@ const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
 export function NavBar({
   name,
   role,
+  loginUrl,
   orgName,
   logoUrl,
   timetableUrl,
@@ -27,6 +28,7 @@ export function NavBar({
 }: {
   name: string;
   role: Role;
+  loginUrl: string;
   orgName: string;
   logoUrl: string;
   timetableUrl?: string;
@@ -43,7 +45,7 @@ export function NavBar({
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.replace("/login");
+    router.replace(loginUrl);
     router.refresh();
   }
 

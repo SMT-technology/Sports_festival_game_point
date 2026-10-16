@@ -39,3 +39,13 @@ export async function getBranding(schoolId: string): Promise<{
     weatherLocationName: settings?.weather_location_name || DEFAULT_WEATHER_LOCATION_NAME,
   };
 }
+
+// 로그아웃 후에는 루트 /login(총괄자 전용)이 아니라, 로그인했던 본인 학교의
+// 로그인 화면(/login/<slug>)으로 돌아가야 한다. 조회가 실패해도 화면이
+// 깨지지 않도록 루트 /login으로 대체한다.
+export async function getSchoolLoginUrl(schoolId: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("schools").select("slug").eq("id", schoolId).single();
+  const slug = (data as { slug: string } | null)?.slug;
+  return slug ? `/login/${slug}` : "/login";
+}
