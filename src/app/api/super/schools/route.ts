@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
   const schoolId = school.id as string;
 
-  const { error: authError } = await admin.auth.admin.createUser({
+  const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email: adminEmail.trim(),
     password: adminPassword,
     email_confirm: true,
@@ -97,5 +97,17 @@ export async function POST(request: Request) {
       .insert(DEFAULT_LOCATIONS.map((loc) => ({ ...loc, school_id: schoolId }))),
   ]);
 
-  return NextResponse.json({ school, loginUrl: `/login/${slug}` });
+  return NextResponse.json({
+    school,
+    loginUrl: `/login/${slug}`,
+    admin: {
+      id: authUser.user!.id,
+      email: adminEmail.trim(),
+      name: adminName.trim(),
+      role: "admin" as const,
+      school_id: schoolId,
+      must_change_password: false,
+      created_at: new Date().toISOString(),
+    },
+  });
 }

@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { School } from "@/lib/database.types";
+import type { Profile, School } from "@/lib/database.types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
-export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) {
+export function SchoolsClient({
+  initialSchools,
+  initialAdmins,
+}: {
+  initialSchools: School[];
+  initialAdmins: Profile[];
+}) {
   const [schools, setSchools] = useState<School[]>(initialSchools);
+  const [admins, setAdmins] = useState<Profile[]>(initialAdmins);
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -17,6 +25,46 @@ export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) 
   const [createdLoginUrl, setCreatedLoginUrl] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
+
+  const [resetTarget, setResetTarget] = useState<Profile | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+
+  function openReset(p: Profile) {
+    setResetTarget(p);
+    setResetPassword("");
+    setResetError(null);
+    setResetDone(false);
+  }
+
+  async function confirmReset() {
+    if (!resetTarget) return;
+    if (resetPassword.length < 6) {
+      setResetError("비밀번호는 6자 이상으로 입력하세요.");
+      return;
+    }
+    setResetBusy(true);
+    setResetError(null);
+    try {
+      const res = await fetch(`/api/super/admins/${resetTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setResetError(body?.error ?? "비밀번호 재설정에 실패했습니다.");
+        return;
+      }
+      setResetDone(true);
+    } catch {
+      setResetError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setResetBusy(false);
+    }
+  }
 
   useEffect(() => {
     const readOrigin = () => setOrigin(window.location.origin);
@@ -48,6 +96,7 @@ export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) 
         return;
       }
       setSchools((prev) => [...prev, body.school as School]);
+      setAdmins((prev) => [...prev, body.admin as Profile]);
       setCreatedLoginUrl(body.loginUrl as string);
       setForm({ name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" });
     } catch {
@@ -81,26 +130,52 @@ export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) 
             <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-400">
               <th className="px-4 py-2">학교 이름</th>
               <th className="px-4 py-2">로그인 주소</th>
+              <th className="px-4 py-2">관리자 계정</th>
               <th className="px-4 py-2">생성일</th>
             </tr>
           </thead>
           <tbody>
             {schools.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-400">
+                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-400">
                   아직 등록된 학교가 없어요. 아래에서 첫 학교를 추가해보세요.
                 </td>
               </tr>
             )}
-            {schools.map((s) => (
-              <tr key={s.id} className="border-b border-slate-50">
-                <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
-                <td className="px-4 py-2.5 text-slate-500">/login/{s.slug}</td>
-                <td className="px-4 py-2.5 text-slate-400">
-                  {new Date(s.created_at).toLocaleDateString("ko-KR")}
-                </td>
-              </tr>
-            ))}
+            {schools.map((s) => {
+              const schoolAdmins = admins.filter((a) => a.school_id === s.id);
+              return (
+                <tr key={s.id} className="border-b border-slate-50 align-top">
+                  <td className="px-4 py-2.5 font-medium text-slate-800">{s.name}</td>
+                  <td className="px-4 py-2.5 text-slate-500">/login/{s.slug}</td>
+                  <td className="px-4 py-2.5">
+                    {schoolAdmins.length === 0 ? (
+                      <span className="text-slate-400">관리자 없음</span>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {schoolAdmins.map((a) => (
+                          <div key={a.id} className="flex flex-wrap items-center gap-2">
+                            <span className="text-slate-700">
+                              {a.name} <span className="text-slate-400">({a.email})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openReset(a)}
+                              className="shrink-0 rounded-lg border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                              🔄 비밀번호 재설정
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-400">
+                    {new Date(s.created_at).toLocaleDateString("ko-KR")}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -197,6 +272,43 @@ export function SchoolsClient({ initialSchools }: { initialSchools: School[] }) 
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!resetTarget}
+        title={`'${resetTarget?.name}' 관리자 비밀번호 재설정`}
+        description={
+          resetDone ? (
+            <p className="text-emerald-700">
+              비밀번호가 변경되었습니다. 새 비밀번호를 해당 관리자에게 전달해주세요.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <p>
+                {resetTarget?.email}로 로그인하는 비밀번호를 새로 설정합니다. 기존 비밀번호는
+                더 이상 쓸 수 없게 돼요.
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">
+                  새 비밀번호 (6자 이상)
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                  placeholder="새 비밀번호"
+                />
+              </div>
+              {resetError && <p className="text-xs text-red-600">{resetError}</p>}
+            </div>
+          )
+        }
+        confirmLabel={resetDone ? "닫기" : "재설정"}
+        onCancel={() => setResetTarget(null)}
+        onConfirm={resetDone ? () => setResetTarget(null) : confirmReset}
+        loading={resetBusy}
+      />
     </div>
   );
 }
