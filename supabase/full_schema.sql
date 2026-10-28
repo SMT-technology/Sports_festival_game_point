@@ -188,6 +188,21 @@ create table if not exists public.app_secrets (
 );
 
 -- ----------------------------------------------------------------------------
+-- school_archives: 체육대회가 끝난 뒤 "올해 데이터 보관 후 초기화"를 누르면
+-- 그 시점의 classes/events/scores/cheer_awards를 JSON으로 통째로 저장해두는
+-- 테이블. school_id/profiles/app_settings/app_secrets/event_locations는 그대로
+-- 두고 반/종목/점수만 비워서, 다음 해에 같은 로그인 링크·계정으로 새로 시작할
+-- 수 있게 한다.
+-- ----------------------------------------------------------------------------
+create table if not exists public.school_archives (
+  id uuid primary key default gen_random_uuid(),
+  school_id uuid not null references public.schools(id) on delete cascade,
+  label text,
+  archived_at timestamptz not null default now(),
+  data jsonb not null
+);
+
+-- ----------------------------------------------------------------------------
 -- cheer_awards: 응원/질서 점수 누적 지급 기록 (종합 순위와 완전히 별도 집계)
 -- ----------------------------------------------------------------------------
 create table if not exists public.cheer_awards (
@@ -453,6 +468,7 @@ alter table public.app_settings enable row level security;
 alter table public.app_secrets enable row level security;
 alter table public.cheer_awards enable row level security;
 alter table public.event_locations enable row level security;
+alter table public.school_archives enable row level security;
 
 -- schools --------------------------------------------------------------------
 -- 로그인 화면(slug로 학교 찾기)은 로그인 전이라 공개 조회가 필요하다. 이름/슬러그
@@ -646,6 +662,17 @@ for all using (
 ) with check (
   (public.is_admin() and school_id = public.current_school_id()) or public.is_super_admin()
 );
+
+-- school_archives --------------------------------------------------------
+drop policy if exists "school_archives_select_admin_same_school" on public.school_archives;
+create policy "school_archives_select_admin_same_school" on public.school_archives
+for select using (
+  (public.is_admin() and school_id = public.current_school_id()) or public.is_super_admin()
+);
+
+drop policy if exists "school_archives_write_super_admin_only" on public.school_archives;
+create policy "school_archives_write_super_admin_only" on public.school_archives
+for all using (public.is_super_admin()) with check (public.is_super_admin());
 
 -- cheer_awards ---------------------------------------------------------------
 drop policy if exists "cheer_awards_select_same_school" on public.cheer_awards;

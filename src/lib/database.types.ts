@@ -117,6 +117,19 @@ export interface AppSecrets {
   public_results_token: string;
 }
 
+export interface SchoolArchive {
+  id: string;
+  school_id: string;
+  label: string | null;
+  archived_at: string;
+  data: {
+    classes: ClassRow[];
+    events: EventRow[];
+    scores: ScoreRow[];
+    cheerAwards: CheerAward[];
+  };
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -182,6 +195,12 @@ export interface Database {
         Row: AppSecrets;
         Insert: Partial<AppSecrets> & { school_id: string };
         Update: Partial<AppSecrets>;
+        Relationships: [];
+      };
+      school_archives: {
+        Row: SchoolArchive;
+        Insert: Partial<SchoolArchive> & { school_id: string; data: SchoolArchive["data"] };
+        Update: Partial<SchoolArchive>;
         Relationships: [];
       };
     };

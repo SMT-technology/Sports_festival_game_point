@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { sortClasses, sortEvents } from "@/lib/scoring";
 import type { AppSettings, CheerAward, ClassRow, EventRow, Profile, School, ScoreRow } from "@/lib/database.types";
+import { SchoolDangerZone } from "./SchoolDangerZone";
 
 export default async function SchoolOverviewPage({
   params,
@@ -19,6 +20,7 @@ export default async function SchoolOverviewPage({
     { data: scores },
     { data: cheerAwards },
     { data: settings },
+    { count: archiveCount },
   ] = await Promise.all([
     supabase.from("schools").select("*").eq("id", id).single(),
     supabase.from("profiles").select("*").eq("school_id", id).eq("role", "admin"),
@@ -27,6 +29,7 @@ export default async function SchoolOverviewPage({
     supabase.from("scores").select("*").eq("school_id", id),
     supabase.from("cheer_awards").select("*").eq("school_id", id),
     supabase.from("app_settings").select("*").eq("school_id", id).single(),
+    supabase.from("school_archives").select("*", { count: "exact", head: true }).eq("school_id", id),
   ]);
 
   if (!school) {
@@ -61,11 +64,21 @@ export default async function SchoolOverviewPage({
         <Link href="/super/schools" className="text-sm text-blue-600 underline">
           ← 학교 목록으로
         </Link>
-        <h2 className="mt-2 text-lg font-bold text-slate-900">
-          📊 {s.name} 현황 <span className="text-sm font-normal text-slate-400">(읽기 전용)</span>
-        </h2>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-slate-900">
+            📊 {s.name} 현황{" "}
+            <span className="text-sm font-normal text-slate-400">(읽기 전용)</span>
+          </h2>
+          <a
+            href={`/api/super/schools/${s.id}/export`}
+            className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+          >
+            ⬇️ 결과 CSV 내보내기
+          </a>
+        </div>
         <p className="mt-1 text-sm text-slate-500">
           /login/{s.slug} · 생성일 {new Date(s.created_at).toLocaleDateString("ko-KR")}
+          {archiveCount ? ` · 보관된 지난 기록 ${archiveCount}건` : ""}
         </p>
       </div>
 
@@ -179,6 +192,8 @@ export default async function SchoolOverviewPage({
           </div>
         </div>
       </section>
+
+      <SchoolDangerZone schoolId={s.id} schoolName={s.name} />
     </div>
   );
 }
