@@ -47,6 +47,7 @@ export function SchoolsClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdLoginUrl, setCreatedLoginUrl] = useState<string | null>(null);
+  const [createdWarning, setCreatedWarning] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -236,6 +237,7 @@ export function SchoolsClient({
       setAdmins((prev) => [...prev, body.admin as Profile]);
       setLogos((prev) => ({ ...prev, [newSchool.id]: body.logoUrl as string }));
       setCreatedLoginUrl(body.loginUrl as string);
+      setCreatedWarning((body.warning as string) ?? null);
       setForm({
         name: "",
         slug: "",
@@ -489,6 +491,11 @@ export function SchoolsClient({
                 열기 ↗
               </Link>
             </div>
+            {createdWarning && (
+              <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                ⚠️ {createdWarning}
+              </p>
+            )}
           </div>
         )}
       </div>

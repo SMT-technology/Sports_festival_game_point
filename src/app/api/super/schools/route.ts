@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
   const trimmedLogoUrl = logoUrl?.trim();
 
-  await Promise.all([
+  const seedResults = await Promise.all([
     admin.from("app_settings").insert({
       school_id: schoolId,
       org_name: name.trim(),
@@ -103,6 +103,10 @@ export async function POST(request: Request) {
       .from("event_locations")
       .insert(DEFAULT_LOCATIONS.map((loc) => ({ ...loc, school_id: schoolId }))),
   ]);
+  const seedLabels = ["기본 설정", "공개 결과 링크", "기본 반 목록", "기본 장소 목록"];
+  const seedErrors = seedResults
+    .map((r, i) => (r.error ? `${seedLabels[i]}: ${r.error.message}` : null))
+    .filter((msg): msg is string => msg !== null);
 
   return NextResponse.json({
     school,
@@ -117,5 +121,13 @@ export async function POST(request: Request) {
       must_change_password: false,
       created_at: new Date().toISOString(),
     },
+    ...(seedErrors.length > 0
+      ? {
+          warning:
+            `학교와 관리자 계정은 만들어졌지만, 일부 초기 설정이 실패했어요: ${seedErrors.join(
+              "; ",
+            )}. 관리자 로그인 후 설정 화면에서 직접 채워주세요.`,
+        }
+      : {}),
   });
 }

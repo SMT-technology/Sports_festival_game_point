@@ -1,19 +1,19 @@
 -- ============================================================================
 -- 체육대회 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0027_fix_set_school_id_service_role.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0028_tenant_isolation_hardening.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
 -- - "완전히 새로운 Supabase 프로젝트"에 처음 설치할 때, 또는 DB를 완전히
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
---   실행하면 끝 — 0001~0027을 하나씩 실행할 필요가 없습니다)
+--   실행하면 끝 — 0001~0028을 하나씩 실행할 필요가 없습니다)
 -- - 이미 0001~0025까지 적용된 기존 프로젝트(여러 학교 전환 이전)에는 이 파일을
 --   그대로 다시 실행하지 마세요 — 0026_multi_school.sql은 기존 데이터를
 --   비우는 파괴적 마이그레이션이라 별도로, 한 번만 실행해야 합니다.
--- - 이 파일은 0001~0027을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
---   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0028, 0029...처럼
+-- - 이 파일은 0001~0028을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
+--   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0029, 0030...처럼
 --   번호를 이어서 새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- - 이 시스템은 여러 학교가 하나의 DB를 공유하는 멀티 스쿨 구조입니다.
 --   총괄자(super_admin)가 학교(schools)를 만들고, 각 학교 관리자(admin)와
@@ -265,6 +265,46 @@ for each row execute function public.set_school_id();
 create or replace trigger trg_set_school_id before insert on public.cheer_awards
 for each row execute function public.set_school_id();
 
+-- scores/cheer_awards의 class_id·event_id가 실제로 같은 학교 소속인지 검증
+-- (단순 FK만으로는 다른 학교의 class_id/event_id를 집어넣는 걸 막을 수 없음).
+-- 트리거 이름이 set_school_id보다 알파벳상 뒤라서 school_id가 먼저 채워진
+-- 뒤에 이 검증이 실행된다.
+create or replace function public.verify_same_school_reference()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if TG_TABLE_NAME = 'scores' then
+    if not exists (
+      select 1 from public.classes where id = new.class_id and school_id = new.school_id
+    ) then
+      raise exception '반(class_id)이 이 점수의 학교(school_id)와 일치하지 않습니다';
+    end if;
+    if not exists (
+      select 1 from public.events where id = new.event_id and school_id = new.school_id
+    ) then
+      raise exception '종목(event_id)이 이 점수의 학교(school_id)와 일치하지 않습니다';
+    end if;
+  elsif TG_TABLE_NAME = 'cheer_awards' then
+    if not exists (
+      select 1 from public.classes where id = new.class_id and school_id = new.school_id
+    ) then
+      raise exception '반(class_id)이 이 응원점수의 학교(school_id)와 일치하지 않습니다';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace trigger trg_verify_same_school_reference
+before insert or update on public.scores
+for each row execute function public.verify_same_school_reference();
+
+create or replace trigger trg_verify_same_school_reference
+before insert or update on public.cheer_awards
+for each row execute function public.verify_same_school_reference();
+
 -- ※ 관리자 화면의 "입력 잠금" UI는 제거됨. 정책 호환을 위해 함수는 남겨둠(항상 해제 상태로 취급).
 create or replace function public.event_is_locked(p_event_id uuid)
 returns boolean
@@ -469,6 +509,28 @@ create or replace trigger trg_prevent_self_role_escalation
 before update on public.profiles
 for each row execute function public.prevent_self_role_escalation();
 
+-- school_id는 가입 시(handle_new_user) 한 번만 정해지고 이후 바뀔 일이 없다.
+-- profiles_update_self_or_admin 정책의 "본인 행이면 통과" 조건이 school_id
+-- 값 자체는 검사하지 않으므로, 이 트리거가 없으면 로그인한 사람이 본인의
+-- school_id를 직접 다른 학교로 바꿔서 그 학교 데이터 전체에 접근할 수 있다
+-- — 누가 됐든(총괄자 포함) UPDATE로 school_id를 바꾸는 것 자체를 막는다.
+create or replace function public.prevent_school_id_change()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.school_id is distinct from old.school_id then
+    raise exception '소속 학교(school_id)는 변경할 수 없습니다';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace trigger trg_prevent_school_id_change
+before update on public.profiles
+for each row execute function public.prevent_school_id_change();
+
 drop policy if exists "profiles_insert_admin_only" on public.profiles;
 create policy "profiles_insert_admin_only" on public.profiles
 for insert with check (public.is_admin() or public.is_super_admin());
@@ -517,7 +579,7 @@ for insert with check (
   or (
     school_id = public.current_school_id()
     and auth.role() = 'authenticated'
-    and not public.event_is_locked(event_id)
+    and (public.is_admin() or not public.event_is_locked(event_id))
   )
 );
 
@@ -528,11 +590,14 @@ for update using (
   or (
     school_id = public.current_school_id()
     and (public.is_admin() or status = 'draft')
-    and not public.event_is_locked(event_id)
+    and (public.is_admin() or not public.event_is_locked(event_id))
   )
 ) with check (
   public.is_super_admin()
-  or (school_id = public.current_school_id() and not public.event_is_locked(event_id))
+  or (
+    school_id = public.current_school_id()
+    and (public.is_admin() or not public.event_is_locked(event_id))
+  )
 );
 
 -- 교사는 본인이 최종 제출한(submitted_by = 자기 자신) 점수만 취소(삭제)할 수
