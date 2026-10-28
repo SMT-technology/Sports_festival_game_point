@@ -308,33 +308,34 @@ export function SchoolsClient({
                       />
                       <div>
                         <p className="font-medium text-slate-800">{s.name}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            href={`/super/schools/${s.id}`}
-                            className="text-xs text-blue-600 underline hover:text-blue-800"
-                          >
-                            📊 현황 보기
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => openLogoEdit(s)}
-                            className="text-xs text-slate-400 underline hover:text-slate-600"
-                          >
-                            🖼 로고 변경
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openLogoEdit(s)}
+                          className="text-xs text-slate-400 underline hover:text-slate-600"
+                        >
+                          🖼 로고 변경
+                        </button>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
-                    <Link
-                      href={`/login/${s.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline hover:text-blue-800"
-                    >
-                      /login/{s.slug}
-                    </Link>
+                    <p className="mb-1.5 text-xs text-slate-400">/login/{s.slug}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Link
+                        href={`/super/schools/${s.id}`}
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        📊 현황 보기
+                      </Link>
+                      <Link
+                        href={`/login/${s.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        🔗 사이트 열기
+                      </Link>
+                    </div>
                   </td>
                   <td className="px-4 py-2.5">
                     {schoolAdmins.length === 0 ? (
