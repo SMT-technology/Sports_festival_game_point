@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Profile, School } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DriveLinkHelper } from "@/components/DriveLinkHelper";
 import { createClient } from "@/lib/supabase/client";
 
 const DEFAULT_LOGO_URL = "/logo.jpg";
@@ -99,6 +100,7 @@ export function SchoolsClient({
   }
 
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export function SchoolsClient({
 
   function openEdit(p: Profile) {
     setEditTarget(p);
+    setEditName(p.name);
     setEditEmail(p.email);
     setEditPassword("");
     setEditError(null);
@@ -115,10 +118,16 @@ export function SchoolsClient({
 
   async function confirmEdit() {
     if (!editTarget) return;
+    const trimmedName = editName.trim();
     const trimmedEmail = editEmail.trim();
+    const nameChanged = trimmedName !== editTarget.name;
     const emailChanged = trimmedEmail !== editTarget.email;
-    if (!emailChanged && !editPassword) {
-      setEditError("이메일 또는 비밀번호 중 하나는 바꿔야 해요.");
+    if (!nameChanged && !emailChanged && !editPassword) {
+      setEditError("이름, 이메일, 비밀번호 중 하나는 바꿔야 해요.");
+      return;
+    }
+    if (nameChanged && !trimmedName) {
+      setEditError("이름을 입력하세요.");
       return;
     }
     if (editPassword && editPassword.length < 6) {
@@ -132,6 +141,7 @@ export function SchoolsClient({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(nameChanged ? { name: trimmedName } : {}),
           ...(emailChanged ? { email: trimmedEmail } : {}),
           ...(editPassword ? { password: editPassword } : {}),
         }),
@@ -141,9 +151,17 @@ export function SchoolsClient({
         setEditError(body?.error ?? "계정 수정에 실패했습니다.");
         return;
       }
-      if (emailChanged) {
+      if (nameChanged || emailChanged) {
         setAdmins((prev) =>
-          prev.map((a) => (a.id === editTarget.id ? { ...a, email: trimmedEmail } : a)),
+          prev.map((a) =>
+            a.id === editTarget.id
+              ? {
+                  ...a,
+                  ...(nameChanged ? { name: trimmedName } : {}),
+                  ...(emailChanged ? { email: trimmedEmail } : {}),
+                }
+              : a,
+          ),
         );
       }
       setEditDone(true);
@@ -354,7 +372,7 @@ export function SchoolsClient({
                               onClick={() => openEdit(a)}
                               className="shrink-0 rounded-lg border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
                             >
-                              ⚙️ 이메일/비밀번호 수정
+                              ⚙️ 이름/이메일/비밀번호 수정
                             </button>
                           </div>
                         ))}
@@ -421,6 +439,7 @@ export function SchoolsClient({
               나중에 학교 목록에서 언제든 바꿀 수 있어요. 해당 학교 관리자도 직접 설정 화면에서
               바꿀 수 있어요.
             </p>
+            <DriveLinkHelper onConvert={(url) => setForm((f) => ({ ...f, logoUrl: url }))} />
           </div>
           <div className="border-t border-slate-100 pt-3">
             <p className="mb-2 text-xs font-semibold text-slate-600">첫 관리자(체육부장) 계정</p>
@@ -515,10 +534,18 @@ export function SchoolsClient({
                 입력하세요.
               </p>
               <div>
+                <label className="block text-xs font-medium text-slate-500">이름</label>
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-slate-500">이메일</label>
                 <input
                   type="email"
-                  autoFocus
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
@@ -569,6 +596,7 @@ export function SchoolsClient({
                   placeholder="https://..."
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
                 />
+                <DriveLinkHelper onConvert={(url) => setLogoEditUrl(url)} />
               </div>
               {logoEditUrl.trim() && (
                 <div className="flex items-center gap-2">

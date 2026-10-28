@@ -10,13 +10,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;
-  const { email, password } = (await request.json().catch(() => ({}))) as {
+  const { name, email, password } = (await request.json().catch(() => ({}))) as {
+    name?: string;
     email?: string;
     password?: string;
   };
 
-  if (!email && !password) {
-    return NextResponse.json({ error: "변경할 이메일 또는 비밀번호를 입력하세요." }, { status: 400 });
+  if (!name && !email && !password) {
+    return NextResponse.json(
+      { error: "변경할 이름, 이메일, 비밀번호 중 하나 이상을 입력하세요." },
+      { status: 400 },
+    );
+  }
+  if (name !== undefined && !name.trim()) {
+    return NextResponse.json({ error: "이름을 입력하세요." }, { status: 400 });
   }
   if (email !== undefined && !EMAIL_RE.test(email.trim())) {
     return NextResponse.json({ error: "유효한 이메일 주소를 입력하세요." }, { status: 400 });
@@ -36,26 +43,36 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "학교 관리자 계정만 수정할 수 있습니다." }, { status: 400 });
   }
 
+  const trimmedName = name?.trim();
   const trimmedEmail = email?.trim();
 
-  const { error: authError } = await admin.auth.admin.updateUserById(id, {
-    ...(trimmedEmail ? { email: trimmedEmail } : {}),
-    ...(password ? { password } : {}),
-  });
-  if (authError) {
-    if (authError.message.toLowerCase().includes("already registered")) {
-      return NextResponse.json({ error: "이미 사용 중인 이메일입니다." }, { status: 400 });
+  if (trimmedEmail || password) {
+    const { error: authError } = await admin.auth.admin.updateUserById(id, {
+      ...(trimmedEmail ? { email: trimmedEmail } : {}),
+      ...(password ? { password } : {}),
+    });
+    if (authError) {
+      if (authError.message.toLowerCase().includes("already registered")) {
+        return NextResponse.json({ error: "이미 사용 중인 이메일입니다." }, { status: 400 });
+      }
+      return NextResponse.json({ error: authError.message }, { status: 400 });
     }
-    return NextResponse.json({ error: authError.message }, { status: 400 });
   }
 
-  if (trimmedEmail) {
+  if (trimmedName || trimmedEmail) {
     const { error: profileError } = await admin
       .from("profiles")
-      .update({ email: trimmedEmail })
+      .update({
+        ...(trimmedName ? { name: trimmedName } : {}),
+        ...(trimmedEmail ? { email: trimmedEmail } : {}),
+      })
       .eq("id", id);
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, email: trimmedEmail ?? existingProfile.email });
+  return NextResponse.json({
+    ok: true,
+    name: trimmedName ?? existingProfile.name,
+    email: trimmedEmail ?? existingProfile.email,
+  });
 }
