@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getBranding, getSchoolLoginUrl } from "@/lib/settings";
 import { NavBar } from "@/components/NavBar";
 import { AdminTabs } from "@/components/AdminTabs";
+import { ContactBadge } from "@/components/ContactBadge";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireAdmin();
@@ -18,6 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminTabs />
         {children}
       </div>
+      <ContactBadge />
     </div>
   );
 }

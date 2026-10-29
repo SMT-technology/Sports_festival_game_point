@@ -5,14 +5,16 @@ import { driveShareLinkToDirectUrl } from "@/lib/googleDrive";
 
 export function DriveLinkHelper({
   onConvert,
+  sizeW,
 }: {
   onConvert: (directUrl: string) => void;
+  sizeW?: number;
 }) {
   const [driveInput, setDriveInput] = useState("");
   const [driveError, setDriveError] = useState<string | null>(null);
 
   function convert() {
-    const direct = driveShareLinkToDirectUrl(driveInput);
+    const direct = driveShareLinkToDirectUrl(driveInput, sizeW);
     if (!direct) {
       setDriveError("구글 드라이브 링크 형식을 알아보지 못했어요. 공유 링크를 다시 확인해주세요.");
       return;

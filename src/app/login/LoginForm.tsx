@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isValidPin, nameToTeacherEmail, pinToTeacherPassword } from "@/lib/teacherAuth";
 import { DateWeatherCard } from "@/components/DateWeatherWidget";
 import { useAccentColor } from "@/lib/useAccentColor";
+import { ContactBadge } from "@/components/ContactBadge";
 
 function describeAuthError(message: string, role: "teacher" | "admin") {
   if (message.includes("Invalid login credentials")) {
@@ -265,6 +266,7 @@ function LoginFormInner({
           </p>
         </div>
       </div>
+      <ContactBadge light />
     </div>
   );
 }

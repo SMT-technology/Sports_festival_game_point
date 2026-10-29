@@ -8,7 +8,10 @@
 // 권한이 맞아도 안 뜨는 경우가 늘고 있다. 대신 구글이 공식 문서화해서 계속
 // 지원하는 썸네일 API(drive.google.com/thumbnail?id=...&sz=...)가 더 안정적이라
 // 이걸로 바꿨다.
-export function driveShareLinkToDirectUrl(input: string): string | null {
+// sizeW: 변환된 주소가 가리킬 이미지의 최대 가로 폭(px). 로고처럼 작게 보여줄
+// 때는 기본값(1000)으로 충분하지만, 시간표처럼 화면 가득 크게 띄워서 글씨를
+// 읽어야 하는 이미지는 더 큰 값을 넘겨야 흐릿하게 안 보인다.
+export function driveShareLinkToDirectUrl(input: string, sizeW: number = 1000): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
@@ -20,5 +23,5 @@ export function driveShareLinkToDirectUrl(input: string): string | null {
   }
   if (!match) return null;
 
-  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w${sizeW}`;
 }

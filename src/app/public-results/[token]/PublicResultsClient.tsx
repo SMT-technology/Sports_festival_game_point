@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PodiumBoard } from "@/components/results/PodiumBoard";
 import { CheerAwardsBoard } from "@/components/results/CheerAwardsBoard";
+import { ContactBadge } from "@/components/ContactBadge";
 import type { CheerAward, ClassRow, EventRow, ScoreRow } from "@/lib/database.types";
 import type { ClassComputed } from "@/components/results/types";
 
@@ -158,6 +159,7 @@ export function PublicResultsClient({
           <CheerAwardsBoard classesByGrade={classesByGrade} cheerTotals={cheerTotals} />
         )}
       </main>
+      <ContactBadge />
     </div>
   );
 }

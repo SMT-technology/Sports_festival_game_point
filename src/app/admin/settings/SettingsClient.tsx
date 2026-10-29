@@ -310,6 +310,7 @@ export function SettingsClient({
             그 주소를 붙여넣으세요.
           </p>
           <DriveLinkHelper
+            sizeW={2000}
             onConvert={(url) => {
               setTimetableUrl(url);
               setTimetableImgError(false);
