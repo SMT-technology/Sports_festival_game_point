@@ -180,6 +180,7 @@ function PublicResultsLink({
 export function SettingsClient({
   schoolId,
   initialOrgName,
+  initialSubtitle,
   initialLogoUrl,
   initialTimetableUrl,
   initialWeatherLat,
@@ -189,6 +190,7 @@ export function SettingsClient({
 }: {
   schoolId: string;
   initialOrgName: string;
+  initialSubtitle: string;
   initialLogoUrl: string;
   initialTimetableUrl: string;
   initialWeatherLat: number;
@@ -197,6 +199,7 @@ export function SettingsClient({
   initialPublicResultsToken: string;
 }) {
   const [orgName, setOrgName] = useState(initialOrgName);
+  const [subtitle, setSubtitle] = useState(initialSubtitle);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
   const [timetableUrl, setTimetableUrl] = useState(initialTimetableUrl);
   const [weatherLat, setWeatherLat] = useState(initialWeatherLat);
@@ -208,8 +211,8 @@ export function SettingsClient({
   const [timetableImgError, setTimetableImgError] = useState(false);
 
   async function save() {
-    if (!orgName.trim() || !logoUrl.trim() || !timetableUrl.trim()) {
-      setMessage("대회 이름, 로고 이미지 URL, 시간표 이미지 URL을 모두 입력하세요.");
+    if (!orgName.trim() || !subtitle.trim() || !logoUrl.trim() || !timetableUrl.trim()) {
+      setMessage("대회 이름, 부제, 로고 이미지 URL, 시간표 이미지 URL을 모두 입력하세요.");
       return;
     }
     setSaving(true);
@@ -219,6 +222,7 @@ export function SettingsClient({
       .from("app_settings")
       .update({
         org_name: orgName.trim(),
+        subtitle: subtitle.trim(),
         logo_url: logoUrl.trim(),
         timetable_url: timetableUrl.trim(),
         weather_lat: weatherLat,
@@ -239,7 +243,7 @@ export function SettingsClient({
       <div>
         <h1 className="text-lg font-bold text-slate-900">⚙️ 사이트 설정</h1>
         <p className="mt-1 text-sm text-slate-500">
-          대회 이름, 로고 이미지, 시간표 이미지, 날씨 지역을 바꿀 수 있어요. 로그인 화면, 상단
+          대회 이름, 부제, 로고 이미지, 시간표 이미지, 날씨 지역을 바꿀 수 있어요. 로그인 화면, 상단
           메뉴, 브라우저 탭 제목, 시간표 팝업까지 전부 여기 값으로 바뀝니다. 다른 학교에서 이
           시스템을 재사용할 때 이 화면만 바꾸면 돼요.
         </p>
@@ -254,6 +258,18 @@ export function SettingsClient({
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             placeholder="예: 신도체육한마당"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700">부제</label>
+          <input
+            value={subtitle}
+            onChange={(e) => setSubtitle(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="예: 점수 집계 시스템"
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            로그인 화면에서 대회 이름 바로 아래 작게 뜨는 문구예요.
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">로고 이미지 URL</label>

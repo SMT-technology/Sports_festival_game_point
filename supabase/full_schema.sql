@@ -1,19 +1,19 @@
 -- ============================================================================
 -- 체육대회 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0028_tenant_isolation_hardening.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0030_app_settings_subtitle.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
 -- - "완전히 새로운 Supabase 프로젝트"에 처음 설치할 때, 또는 DB를 완전히
 --   새로 만드는(초기화하는) 경우에 이 파일 하나만 실행하면 됩니다.
 --   (SQL Editor에서 "+ New query" 한 번만 누르고 이 파일 내용을 붙여넣어
---   실행하면 끝 — 0001~0028을 하나씩 실행할 필요가 없습니다)
+--   실행하면 끝 — 0001~0030을 하나씩 실행할 필요가 없습니다)
 -- - 이미 0001~0025까지 적용된 기존 프로젝트(여러 학교 전환 이전)에는 이 파일을
 --   그대로 다시 실행하지 마세요 — 0026_multi_school.sql은 기존 데이터를
 --   비우는 파괴적 마이그레이션이라 별도로, 한 번만 실행해야 합니다.
--- - 이 파일은 0001~0028을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
---   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0029, 0030...처럼
+-- - 이 파일은 0001~0030을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
+--   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0031, 0032...처럼
 --   번호를 이어서 새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- - 이 시스템은 여러 학교가 하나의 DB를 공유하는 멀티 스쿨 구조입니다.
 --   총괄자(super_admin)가 학교(schools)를 만들고, 각 학교 관리자(admin)와
@@ -171,6 +171,7 @@ create table if not exists public.app_settings (
   rankings_visible boolean not null default true,
   cheer_results_visible boolean not null default false,
   org_name text not null default '우리학교',
+  subtitle text not null default '점수 집계 시스템',
   logo_url text not null default '/logo.jpg',
   timetable_url text not null default '/sports-festival-game_TT.png',
   weather_lat numeric not null default 37.5665,

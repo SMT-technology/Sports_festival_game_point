@@ -47,6 +47,7 @@ export default async function SchoolLoginPage({
     <LoginForm
       schoolId={school.id}
       orgName={branding.orgName}
+      subtitle={branding.subtitle}
       logoUrl={branding.logoUrl}
       weatherLat={branding.weatherLat}
       weatherLon={branding.weatherLon}

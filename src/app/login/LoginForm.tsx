@@ -29,6 +29,7 @@ function describeAuthError(message: string, role: "teacher" | "admin") {
 interface LoginFormProps {
   schoolId: string;
   orgName: string;
+  subtitle: string;
   logoUrl: string;
   weatherLat: number;
   weatherLon: number;
@@ -46,6 +47,7 @@ export function LoginForm(props: LoginFormProps) {
 function LoginFormInner({
   schoolId,
   orgName,
+  subtitle,
   logoUrl,
   weatherLat,
   weatherLon,
@@ -141,7 +143,7 @@ function LoginFormInner({
               />
             </div>
             <h1 className="mt-3 text-xl font-bold text-slate-900">{orgName}</h1>
-            <p className="mt-1 text-sm text-slate-400">{orgName} 점수 집계</p>
+            <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppSettings } from "@/lib/database.types";
 
 const DEFAULT_ORG_NAME = "신도체육한마당";
+const DEFAULT_SUBTITLE = "점수 집계 시스템";
 const DEFAULT_LOGO_URL = "/logo.jpg";
 const DEFAULT_TIMETABLE_URL = "/sports-festival-game_TT.png";
 const DEFAULT_WEATHER_LAT = 37.5665;
@@ -14,6 +15,7 @@ const DEFAULT_WEATHER_LOCATION_NAME = "서울";
 // 등) 기본값으로 대체해서 화면이 깨지지 않게 한다.
 export async function getBranding(schoolId: string): Promise<{
   orgName: string;
+  subtitle: string;
   logoUrl: string;
   timetableUrl: string;
   weatherLat: number;
@@ -23,15 +25,24 @@ export async function getBranding(schoolId: string): Promise<{
   const supabase = await createClient();
   const { data } = await supabase
     .from("app_settings")
-    .select("org_name, logo_url, timetable_url, weather_lat, weather_lon, weather_location_name")
+    .select(
+      "org_name, subtitle, logo_url, timetable_url, weather_lat, weather_lon, weather_location_name",
+    )
     .eq("school_id", schoolId)
     .single();
   const settings = data as Pick<
     AppSettings,
-    "org_name" | "logo_url" | "timetable_url" | "weather_lat" | "weather_lon" | "weather_location_name"
+    | "org_name"
+    | "subtitle"
+    | "logo_url"
+    | "timetable_url"
+    | "weather_lat"
+    | "weather_lon"
+    | "weather_location_name"
   > | null;
   return {
     orgName: settings?.org_name || DEFAULT_ORG_NAME,
+    subtitle: settings?.subtitle || DEFAULT_SUBTITLE,
     logoUrl: settings?.logo_url || DEFAULT_LOGO_URL,
     timetableUrl: settings?.timetable_url || DEFAULT_TIMETABLE_URL,
     weatherLat: settings?.weather_lat ?? DEFAULT_WEATHER_LAT,

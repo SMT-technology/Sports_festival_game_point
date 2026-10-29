@@ -18,6 +18,7 @@ export default async function AdminSettingsPage() {
     <SettingsClient
       schoolId={schoolId}
       initialOrgName={settings?.org_name ?? "신도체육한마당"}
+      initialSubtitle={settings?.subtitle ?? "점수 집계 시스템"}
       initialLogoUrl={settings?.logo_url ?? "/logo.jpg"}
       initialTimetableUrl={settings?.timetable_url ?? "/sports-festival-game_TT.png"}
       initialWeatherLat={settings?.weather_lat ?? 37.5665}

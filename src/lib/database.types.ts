@@ -86,6 +86,7 @@ export interface AppSettings {
   rankings_visible: boolean;
   cheer_results_visible: boolean;
   org_name: string;
+  subtitle: string;
   logo_url: string;
   timetable_url: string;
   weather_lat: number;
