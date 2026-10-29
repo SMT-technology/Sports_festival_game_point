@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isValidPin, nameToTeacherEmail, pinToTeacherPassword } from "@/lib/teacherAuth";
 import { DateWeatherCard } from "@/components/DateWeatherWidget";
+import { useAccentColor } from "@/lib/useAccentColor";
 
 function describeAuthError(message: string, role: "teacher" | "admin") {
   if (message.includes("Invalid login credentials")) {
@@ -59,6 +60,7 @@ function LoginFormInner({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const accent = useAccentColor(logoUrl, schoolId || orgName);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -102,7 +104,12 @@ function LoginFormInner({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-orange-500">
+    <div
+      className="relative min-h-screen overflow-hidden"
+      style={{
+        backgroundImage: `linear-gradient(to bottom right, ${accent.from}, ${accent.via}, ${accent.to})`,
+      }}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-10"
@@ -133,7 +140,7 @@ function LoginFormInner({
               />
             </div>
             <h1 className="mt-3 text-xl font-bold text-slate-900">{orgName}</h1>
-            <p className="mt-1 text-sm text-slate-400">점수 관리 시스템</p>
+            <p className="mt-1 text-sm text-slate-400">{orgName} 점수 집계</p>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">

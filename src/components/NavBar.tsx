@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DateWeatherCompact } from "@/components/DateWeatherWidget";
+import { useAccentColor } from "@/lib/useAccentColor";
 import type { Role } from "@/lib/database.types";
 
 const LINKS = [
@@ -41,6 +42,7 @@ export function NavBar({
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [timetableError, setTimetableError] = useState(false);
+  const accent = useAccentColor(logoUrl, orgName);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -52,7 +54,12 @@ export function NavBar({
   return (
     <>
     <header className="border-b border-slate-200 bg-white">
-      <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-orange-500" />
+      <div
+        className="h-1.5"
+        style={{
+          backgroundImage: `linear-gradient(to right, ${accent.from}, ${accent.via}, ${accent.to})`,
+        }}
+      />
       {weatherLat != null && weatherLon != null && (
         <div className="border-b border-slate-100 bg-slate-50">
           <div className="mx-auto flex max-w-5xl justify-end px-4 py-1">
