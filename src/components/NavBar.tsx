@@ -22,6 +22,7 @@ export function NavBar({
   loginUrl,
   orgName,
   logoUrl,
+  schoolId,
   timetableUrl,
   weatherLat,
   weatherLon,
@@ -32,6 +33,7 @@ export function NavBar({
   loginUrl: string;
   orgName: string;
   logoUrl: string;
+  schoolId?: string;
   timetableUrl?: string;
   weatherLat?: number;
   weatherLon?: number;
@@ -42,7 +44,7 @@ export function NavBar({
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [timetableError, setTimetableError] = useState(false);
-  const accent = useAccentColor(logoUrl, orgName);
+  const accent = useAccentColor(logoUrl, orgName, schoolId);
 
   async function handleSignOut() {
     const supabase = createClient();

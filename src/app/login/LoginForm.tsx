@@ -63,7 +63,7 @@ function LoginFormInner({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const accent = useAccentColor(logoUrl, schoolId || orgName);
+  const accent = useAccentColor(logoUrl, schoolId || orgName, schoolId);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
