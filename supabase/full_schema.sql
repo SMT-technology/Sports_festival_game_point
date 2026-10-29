@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 체육대회 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0030_app_settings_subtitle.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0031_security_hardening_round2.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
@@ -13,7 +13,7 @@
 --   그대로 다시 실행하지 마세요 — 0026_multi_school.sql은 기존 데이터를
 --   비우는 파괴적 마이그레이션이라 별도로, 한 번만 실행해야 합니다.
 -- - 이 파일은 0001~0030을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
---   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0031, 0032...처럼
+--   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0032, 0033...처럼
 --   번호를 이어서 새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- - 이 시스템은 여러 학교가 하나의 DB를 공유하는 멀티 스쿨 구조입니다.
 --   총괄자(super_admin)가 학교(schools)를 만들고, 각 학교 관리자(admin)와
@@ -50,22 +50,56 @@ create table if not exists public.profiles (
   )
 );
 
+-- 발급 비밀값: 총괄자가 교사/관리자 계정을 만들 때만 아는 값. 이 값이 없거나
+-- 틀리면 회원가입 메타데이터(role/school_id)를 신뢰하지 않는다 — Supabase
+-- 프로젝트의 이메일 회원가입이 켜져 있어도 누가 직접 supabase.auth.signUp()을
+-- 호출해서 다른 학교 관리자나 총괄자로 가입해버리는 것을 막기 위함.
+create table if not exists public.provisioning_secret (
+  id boolean primary key default true check (id),
+  secret text not null default encode(gen_random_bytes(32), 'hex')
+);
+insert into public.provisioning_secret (id) values (true) on conflict (id) do nothing;
+
+alter table public.provisioning_secret enable row level security;
+-- 일부러 정책을 하나도 안 만든다 — RLS는 켜져 있는데 정책이 없으면 클라이언트
+-- (anon/authenticated 키)로는 어떤 요청도 통과하지 못한다. 서비스 롤 키는 RLS를
+-- 우회하므로 서버 코드(계정 생성 API)에서만 읽을 수 있다.
+
 -- 신규 가입 시 profiles 행 자동 생성 — user_metadata의 school_id/role도 반영한다
 -- (관리자가 교사를 만들거나, 총괄자가 새 학교의 첫 관리자를 만들 때 서버 코드가
--- auth.users 생성 시점에 이 메타데이터를 같이 채워 보낸다).
+-- auth.users 생성 시점에 이 메타데이터를 같이 채워 보낸다). role/school_id를
+-- 요청했는데 발급 비밀값이 없거나 틀리면 teacher/school_id=null로 강등하고,
+-- 그래도 school_id가 없으면(= 신뢰할 수 없는 자율 가입) 가입 자체를 거부한다.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  requested_role text := coalesce(new.raw_user_meta_data ->> 'role', 'teacher');
+  requested_school_id uuid := nullif(new.raw_user_meta_data ->> 'school_id', '')::uuid;
+  provided_secret text := new.raw_user_meta_data ->> 'provision_secret';
+  real_secret text;
 begin
+  select secret into real_secret from public.provisioning_secret limit 1;
+
+  if (requested_role in ('admin', 'super_admin') or requested_school_id is not null)
+     and (real_secret is null or provided_secret is distinct from real_secret) then
+    requested_role := 'teacher';
+    requested_school_id := null;
+  end if;
+
+  if requested_role = 'teacher' and requested_school_id is null then
+    raise exception '신뢰할 수 없는 가입 요청입니다. 관리자에게 계정 생성을 요청하세요.';
+  end if;
+
   insert into public.profiles (id, email, name, role, school_id)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'name', new.email),
-    coalesce(new.raw_user_meta_data ->> 'role', 'teacher'),
-    nullif(new.raw_user_meta_data ->> 'school_id', '')::uuid
+    requested_role,
+    requested_school_id
   )
   on conflict (id) do nothing;
   return new;
@@ -456,6 +490,40 @@ after delete on public.scores
 for each row execute function public.log_score_delete();
 
 -- ============================================================================
+-- 운영 함수: "올해 데이터 보관 후 초기화"를 하나의 트랜잭션으로 묶는다
+-- (스냅샷 insert + 삭제가 분리된 여러 요청이면, 중간에 실패할 때 일부만 지워진
+-- 애매한 상태가 될 수 있어서 DB 함수 하나로 원자적으로 실행한다)
+-- ============================================================================
+
+create or replace function public.archive_and_reset_school(p_school_id uuid, p_label text)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_archive_id uuid;
+  v_data jsonb;
+begin
+  select jsonb_build_object(
+    'classes', coalesce((select jsonb_agg(c) from public.classes c where c.school_id = p_school_id), '[]'::jsonb),
+    'events', coalesce((select jsonb_agg(e) from public.events e where e.school_id = p_school_id), '[]'::jsonb),
+    'scores', coalesce((select jsonb_agg(s) from public.scores s where s.school_id = p_school_id), '[]'::jsonb),
+    'cheerAwards', coalesce((select jsonb_agg(ca) from public.cheer_awards ca where ca.school_id = p_school_id), '[]'::jsonb)
+  ) into v_data;
+
+  insert into public.school_archives (school_id, label, data)
+  values (p_school_id, nullif(trim(p_label), ''), v_data)
+  returning id into v_archive_id;
+
+  delete from public.classes where school_id = p_school_id;
+  delete from public.events where school_id = p_school_id;
+  delete from public.score_audit_log where school_id = p_school_id;
+
+  return v_archive_id;
+end;
+$$;
+
+-- ============================================================================
 -- Row Level Security
 -- ============================================================================
 
@@ -636,10 +704,13 @@ create policy "audit_select_same_school" on public.score_audit_log
 for select using (school_id = public.current_school_id() or public.is_super_admin());
 
 -- app_settings -------------------------------------------------------------
--- 로그인 화면에서 비로그인 상태로도 학교 이름/로고를 봐야 하므로 공개 조회 허용.
+-- 로그인 화면(비로그인)의 학교 이름/로고 조회는 서버 코드가 서비스 롤로 직접
+-- 하므로(getPublicBranding), RLS는 "내 학교 것만" 보이게 좁힌다 — 그래야 아무나
+-- 전체 학교의 설정(공개 전까지 비공개였으면 하는 값 포함)을 가져가지 못한다.
 drop policy if exists "app_settings_select_public" on public.app_settings;
-create policy "app_settings_select_public" on public.app_settings
-for select using (true);
+drop policy if exists "app_settings_select_same_school" on public.app_settings;
+create policy "app_settings_select_same_school" on public.app_settings
+for select using (school_id = public.current_school_id() or public.is_super_admin());
 
 drop policy if exists "app_settings_write_admin_same_school" on public.app_settings;
 create policy "app_settings_write_admin_same_school" on public.app_settings

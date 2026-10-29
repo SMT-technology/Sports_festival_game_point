@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSuperAdminApi } from "@/lib/adminGuard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getProvisioningSecret } from "@/lib/provisioningSecret";
 
 const SLUG_RE = /^[a-z0-9-]+$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,12 +74,18 @@ export async function POST(request: Request) {
   }
 
   const schoolId = school.id as string;
+  const provisionSecret = await getProvisioningSecret();
 
   const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email: adminEmail.trim(),
     password: adminPassword,
     email_confirm: true,
-    user_metadata: { name: adminName.trim(), school_id: schoolId, role: "admin" },
+    user_metadata: {
+      name: adminName.trim(),
+      school_id: schoolId,
+      role: "admin",
+      provision_secret: provisionSecret,
+    },
   });
 
   if (authError) {

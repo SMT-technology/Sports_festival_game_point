@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { getBranding } from "@/lib/settings";
+import { getPublicBranding } from "@/lib/settings";
 import type { School } from "@/lib/database.types";
 import { LoginForm } from "../LoginForm";
 
@@ -41,7 +41,7 @@ export default async function SchoolLoginPage({
     );
   }
 
-  const branding = await getBranding(school.id);
+  const branding = await getPublicBranding(school.id);
 
   return (
     <LoginForm

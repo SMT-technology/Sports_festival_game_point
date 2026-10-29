@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/adminGuard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getProvisioningSecret } from "@/lib/provisioningSecret";
 import { DEFAULT_TEACHER_PIN, nameToTeacherEmail, pinToTeacherPassword } from "@/lib/teacherAuth";
 
 export async function POST(request: Request) {
@@ -14,11 +15,17 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+  const provisionSecret = await getProvisioningSecret();
   const { data, error } = await admin.auth.admin.createUser({
     email: nameToTeacherEmail(guard.schoolId, name),
     password: pinToTeacherPassword(DEFAULT_TEACHER_PIN),
     email_confirm: true,
-    user_metadata: { name: name.trim(), school_id: guard.schoolId, role: "teacher" },
+    user_metadata: {
+      name: name.trim(),
+      school_id: guard.schoolId,
+      role: "teacher",
+      provision_secret: provisionSecret,
+    },
   });
 
   if (error) {
