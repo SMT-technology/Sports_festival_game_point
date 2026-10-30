@@ -350,25 +350,26 @@ export function SchoolsClient({
                 <tr key={s.id} className="border-b border-slate-50 align-top">
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={logoSrc}
-                        alt={`${s.name} 로고`}
-                        className="h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover"
-                        onError={() =>
-                          setLogoErrorIds((prev) => new Set(prev).add(s.id))
-                        }
-                      />
-                      <div>
-                        <p className="font-medium text-slate-800">{s.name}</p>
-                        <button
-                          type="button"
-                          onClick={() => openLogoEdit(s)}
-                          className="mt-1 inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                        >
-                          🖼 로고 변경
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openLogoEdit(s)}
+                        title="로고 변경"
+                        className="group relative h-8 w-8 shrink-0 rounded-full"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={logoSrc}
+                          alt={`${s.name} 로고`}
+                          className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+                          onError={() =>
+                            setLogoErrorIds((prev) => new Set(prev).add(s.id))
+                          }
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-[10px] text-transparent transition group-hover:bg-black/40 group-hover:text-white">
+                          🖊
+                        </span>
+                      </button>
+                      <p className="font-medium text-slate-800">{s.name}</p>
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
