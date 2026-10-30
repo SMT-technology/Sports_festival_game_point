@@ -1,7 +1,7 @@
 -- ============================================================================
 -- 체육대회 점수 관리 시스템 - 통합 스키마 (전체 설치용, 단일 파일)
 --
--- 이 파일 하나만 실행하면 0001_schema.sql ~ 0031_security_hardening_round2.sql을
+-- 이 파일 하나만 실행하면 0001_schema.sql ~ 0032_active_grades.sql을
 -- 순서대로 전부 실행한 것과 동일한 최종 상태가 만들어집니다.
 --
 -- ⚠️ 용도 안내
@@ -13,7 +13,7 @@
 --   그대로 다시 실행하지 마세요 — 0026_multi_school.sql은 기존 데이터를
 --   비우는 파괴적 마이그레이션이라 별도로, 한 번만 실행해야 합니다.
 -- - 이 파일은 0001~0030을 대체하는 게 아니라 "새 프로젝트를 한 번에 세팅하기
---   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0032, 0033...처럼
+--   위한 요약본"입니다. 앞으로 새 기능을 추가할 때는 여전히 0033, 0034...처럼
 --   번호를 이어서 새 마이그레이션 파일을 만들고, 이 파일도 함께 갱신해주세요.
 -- - 이 시스템은 여러 학교가 하나의 DB를 공유하는 멀티 스쿨 구조입니다.
 --   총괄자(super_admin)가 학교(schools)를 만들고, 각 학교 관리자(admin)와
@@ -211,7 +211,15 @@ create table if not exists public.app_settings (
   weather_lat numeric not null default 37.5665,
   weather_lon numeric not null default 126.9780,
   weather_location_name text not null default '서울',
-  updated_at timestamptz not null default now()
+  -- 학교가 실제로 체육대회를 운영하는 학년만 골라둔다 (반 관리 화면에서
+  -- 학년 섹션을 보이거나 숨기는 데에만 쓰임 — classes/events의 grade 값
+  -- 범위 자체는 그대로 1~3).
+  active_grades smallint[] not null default '{1,2,3}',
+  updated_at timestamptz not null default now(),
+  constraint app_settings_active_grades_check check (
+    array_length(active_grades, 1) > 0
+    and active_grades <@ array[1, 2, 3]::smallint[]
+  )
 );
 
 -- ----------------------------------------------------------------------------

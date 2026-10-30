@@ -92,6 +92,7 @@ export interface AppSettings {
   weather_lat: number;
   weather_lon: number;
   weather_location_name: string;
+  active_grades: (1 | 2 | 3)[];
   updated_at: string;
 }
 

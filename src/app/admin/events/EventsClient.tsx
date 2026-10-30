@@ -104,9 +104,11 @@ function ScoringTypeSelect({
 export function EventsClient({
   initialEvents,
   initialLocations,
+  activeGrades,
 }: {
   initialEvents: EventRow[];
   initialLocations: EventLocation[];
+  activeGrades: number[];
 }) {
   const [events, setEvents] = useState<EventRow[]>(initialEvents);
   const [locations, setLocations] = useState<EventLocation[]>(initialLocations);
@@ -241,7 +243,12 @@ export function EventsClient({
     category: string;
     scoring_type: ScoringType;
     grades: number[];
-  }>({ name: "", category: initialLocations[0]?.name ?? "", scoring_type: "rank", grades: [1, 2, 3] });
+  }>({
+    name: "",
+    category: initialLocations[0]?.name ?? "",
+    scoring_type: "rank",
+    grades: activeGrades,
+  });
   const [creating, setCreating] = useState(false);
 
   function toggleGradeIn(grades: number[], grade: number): number[] {
@@ -332,7 +339,7 @@ export function EventsClient({
       name: "",
       category: newEvent.category,
       scoring_type: "rank",
-      grades: [1, 2, 3],
+      grades: activeGrades,
     });
   }
 
@@ -514,7 +521,7 @@ export function EventsClient({
           <div>
             <label className="block text-xs text-slate-500">대상 학년</label>
             <div className="mt-1 flex gap-1">
-              {[1, 2, 3].map((g) => (
+              {activeGrades.map((g) => (
                 <button
                   key={g}
                   type="button"
@@ -595,7 +602,7 @@ export function EventsClient({
                         className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs"
                       />
                       <div className="flex gap-1" title="대상 학년">
-                        {[1, 2, 3].map((g) => (
+                        {[...new Set([...activeGrades, ...ev.grades])].sort((a, b) => a - b).map((g) => (
                           <button
                             key={g}
                             type="button"

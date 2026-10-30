@@ -51,7 +51,7 @@ export default async function SchoolOverviewPage({
   const awards = (cheerAwards ?? []) as CheerAward[];
   const appSettings = settings as AppSettings | null;
 
-  const gradeCounts = [1, 2, 3].map((grade) => ({
+  const gradeCounts = (appSettings?.active_grades ?? [1, 2, 3]).map((grade) => ({
     grade,
     count: sortedClasses.filter((c) => c.grade === grade).length,
   }));
