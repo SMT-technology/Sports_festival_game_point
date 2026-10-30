@@ -96,10 +96,7 @@ export function SchoolDangerZone({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-3">
           <div>
             <p className="text-sm font-medium text-slate-800">올해 데이터 보관 후 초기화</p>
-            <p className="text-xs text-slate-500">
-              지금까지의 반/종목/점수/응원점수를 기록으로 저장해두고 비워서, 다음 체육대회를
-              같은 로그인 링크·계정으로 새로 시작할 수 있게 해요.
-            </p>
+            <p className="text-xs text-slate-500">반/종목/점수/응원점수를 기록으로 저장하고 비워요.</p>
           </div>
           <button
             type="button"
@@ -113,9 +110,7 @@ export function SchoolDangerZone({
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-3">
           <div>
             <p className="text-sm font-medium text-slate-800">학교 삭제</p>
-            <p className="text-xs text-slate-500">
-              이 학교의 모든 데이터와 관리자·교사 계정이 영구적으로 삭제돼요. 되돌릴 수 없어요.
-            </p>
+            <p className="text-xs text-slate-500">되돌릴 수 없어요.</p>
           </div>
           <button
             type="button"
@@ -132,16 +127,9 @@ export function SchoolDangerZone({
         title="올해 데이터 보관 후 초기화"
         description={
           resetDone ? (
-            <p className="text-emerald-700">
-              보관 완료! 반/종목/점수/응원점수가 초기화됐어요. 관리자가 새로 반/종목을
-              만들면 돼요.
-            </p>
+            <p className="text-emerald-700">보관 완료! 반/종목/점수/응원점수가 초기화됐어요.</p>
           ) : (
             <div className="space-y-3">
-              <p>
-                지금까지의 데이터가 기록으로 저장된 뒤, 반/종목/점수/응원점수가 전부
-                비워져요. 로그인 링크와 관리자·교사 계정, 사이트 설정은 그대로 남아요.
-              </p>
               <div>
                 <label className="block text-xs font-medium text-slate-500">
                   보관 이름 (선택, 예: 2026년 체육대회)
@@ -180,10 +168,7 @@ export function SchoolDangerZone({
         title="학교 삭제"
         description={
           <div className="space-y-3">
-            <p>
-              &ldquo;{schoolName}&rdquo;의 모든 반/종목/점수/응원점수/설정과 관리자·교사
-              계정이 영구적으로 삭제돼요. 이 작업은 되돌릴 수 없어요.
-            </p>
+            <p className="text-sm text-red-700">모든 데이터와 계정이 영구 삭제돼요. 되돌릴 수 없어요.</p>
             <div>
               <label className="block text-xs font-medium text-slate-500">
                 진행하려면 학교 이름(&ldquo;{schoolName}&rdquo;)을 정확히 입력하세요

@@ -320,14 +320,7 @@ export function SchoolsClient({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-base font-bold text-slate-900">🏫 학교 목록</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          학교를 추가하면 그 학교만의 전용 로그인 링크와 첫 관리자 계정이 함께 만들어져요. 각
-          학교의 체육부장에게 로그인 링크를 전달하면, 그 학교의 반/종목/점수를 완전히 독립적으로
-          운영할 수 있어요.
-        </p>
-      </div>
+      <h2 className="text-base font-bold text-slate-900">🏫 학교 목록</h2>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
@@ -371,7 +364,7 @@ export function SchoolsClient({
                         <button
                           type="button"
                           onClick={() => openLogoEdit(s)}
-                          className="text-xs text-slate-400 underline hover:text-slate-600"
+                          className="mt-1 inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                         >
                           🖼 로고 변경
                         </button>
@@ -484,10 +477,6 @@ export function SchoolsClient({
               placeholder="https://... (비워두면 기본 로고가 쓰여요)"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
             />
-            <p className="mt-1 text-xs text-slate-400">
-              나중에 학교 목록에서 언제든 바꿀 수 있어요. 해당 학교 관리자도 직접 설정 화면에서
-              바꿀 수 있어요.
-            </p>
             <DriveLinkHelper onConvert={(url) => setForm((f) => ({ ...f, logoUrl: url }))} />
           </div>
           <div className="border-t border-slate-100 pt-3">
@@ -573,15 +562,9 @@ export function SchoolsClient({
         title={`'${editTarget?.name}' 관리자 계정 수정`}
         description={
           editDone ? (
-            <p className="text-emerald-700">
-              저장되었습니다. 바뀐 이메일/비밀번호를 해당 관리자에게 전달해주세요.
-            </p>
+            <p className="text-emerald-700">저장되었습니다.</p>
           ) : (
             <div className="space-y-3">
-              <p>
-                오타가 났거나 비밀번호를 잊어버렸을 때 여기서 바로 고칠 수 있어요. 바꿀 항목만
-                입력하세요.
-              </p>
               <div>
                 <label className="block text-xs font-medium text-slate-500">이름</label>
                 <input
@@ -630,10 +613,6 @@ export function SchoolsClient({
             <p className="text-emerald-700">로고가 변경되었습니다.</p>
           ) : (
             <div className="space-y-3">
-              <p>
-                어딘가에 이미지를 먼저 업로드하고, 그 이미지 주소(URL)를 붙여넣으세요. 이
-                로고는 해당 학교의 로그인 화면과 상단 메뉴에 바로 반영돼요.
-              </p>
               <div>
                 <label className="block text-xs font-medium text-slate-500">
                   로고 이미지 URL
