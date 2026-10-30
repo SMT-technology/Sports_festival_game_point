@@ -27,6 +27,8 @@ export function ClassesClient({
   const [busyGrade, setBusyGrade] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClassRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteAllGrade, setDeleteAllGrade] = useState<number | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [activeGrades, setActiveGrades] = useState<(1 | 2 | 3)[]>(initialActiveGrades);
@@ -78,6 +80,21 @@ export function ClassesClient({
     }
     setClasses((prev) => prev.filter((c) => c.id !== deleteTarget.id));
     setDeleteTarget(null);
+  }
+
+  async function deleteAllInGrade() {
+    if (deleteAllGrade === null) return;
+    setDeletingAll(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("classes").delete().eq("grade", deleteAllGrade);
+    setDeletingAll(false);
+    if (error) {
+      setError("모두 삭제 실패: " + error.message);
+      setDeleteAllGrade(null);
+      return;
+    }
+    setClasses((prev) => prev.filter((c) => c.grade !== deleteAllGrade));
+    setDeleteAllGrade(null);
   }
 
   async function toggleGrade(grade: 1 | 2 | 3) {
@@ -157,13 +174,23 @@ export function ClassesClient({
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
                     {grade}학년 ({list.length}개 반)
                   </span>
-                  <button
-                    onClick={() => addClass(grade)}
-                    disabled={busyGrade === grade}
-                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    + 반 추가
-                  </button>
+                  <div className="flex gap-1.5">
+                    {list.length > 0 && (
+                      <button
+                        onClick={() => setDeleteAllGrade(grade)}
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        🗑 모두 삭제
+                      </button>
+                    )}
+                    <button
+                      onClick={() => addClass(grade)}
+                      disabled={busyGrade === grade}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      + 반 추가
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 p-4">
                   {list.length === 0 && (
@@ -231,6 +258,19 @@ export function ClassesClient({
         onCancel={() => setDeleteTarget(null)}
         onConfirm={deleteClass}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={deleteAllGrade !== null}
+        title={`${deleteAllGrade}학년 반을 모두 삭제하시겠습니까?`}
+        description={`${deleteAllGrade}학년의 반 ${
+          classesByGrade.get(deleteAllGrade ?? -1)?.length ?? 0
+        }개와 그 반들의 모든 점수·응원 점수 기록이 함께 영구 삭제됩니다. 되돌릴 수 없습니다.`}
+        confirmLabel="모두 삭제"
+        danger
+        onCancel={() => setDeleteAllGrade(null)}
+        onConfirm={deleteAllInGrade}
+        loading={deletingAll}
       />
     </div>
   );
