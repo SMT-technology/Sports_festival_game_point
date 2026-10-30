@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Profile, School } from "@/lib/database.types";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DriveLinkHelper } from "@/components/DriveLinkHelper";
@@ -31,8 +32,11 @@ export function SchoolsClient({
   initialLogos: Record<string, string>;
   initialLastActivity: Record<string, string>;
 }) {
+  const router = useRouter();
   const [schools, setSchools] = useState<School[]>(initialSchools);
   const [admins, setAdmins] = useState<Profile[]>(initialAdmins);
+  const [impersonateBusyId, setImpersonateBusyId] = useState<string | null>(null);
+  const [impersonateError, setImpersonateError] = useState<string | null>(null);
   const [logos, setLogos] = useState<Record<string, string>>(initialLogos);
   const [logoErrorIds, setLogoErrorIds] = useState<Set<string>>(new Set());
   const [lastActivity, setLastActivity] = useState<Record<string, string>>(initialLastActivity);
@@ -271,6 +275,42 @@ export function SchoolsClient({
     }
   }
 
+  // 총괄자가 특정 학교의 관리자 계정으로 실제 로그인되게 한다 — 매직링크
+  // 토큰을 서버에서 받아와 verifyOtp로 그 관리자의 세션을 브라우저에 심는다.
+  // 이렇게 하면 이후 /admin 화면은 "진짜 그 관리자가 로그인한 것"과 똑같이
+  // 동작해서, 기존 화면 코드를 하나도 바꾸지 않아도 학교별 데이터가 정확히
+  // 분리된 채로 보인다.
+  async function impersonate(adminId: string) {
+    setImpersonateError(null);
+    setImpersonateBusyId(adminId);
+    try {
+      const res = await fetch(`/api/super/admins/${adminId}/impersonate`, { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setImpersonateError(body?.error ?? "관리자 로그인에 실패했습니다.");
+        return;
+      }
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: body.tokenHash as string,
+        type: "email",
+      });
+      if (error) {
+        setImpersonateError(`로그인 세션 생성에 실패했습니다: ${error.message}`);
+        return;
+      }
+      // NavBar가 이 값을 보고 실제 관리자 이름/이메일 대신 "총괄자 서민택"으로
+      // 표시한다 (관리자 개인정보가 화면에 노출되지 않게).
+      document.cookie = "impersonating=1; path=/";
+      router.replace("/admin/classes");
+      router.refresh();
+    } catch {
+      setImpersonateError("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setImpersonateBusyId(null);
+    }
+  }
+
   async function copyLoginUrl() {
     if (!createdLoginUrl) return;
     await navigator.clipboard.writeText(`${origin}${createdLoginUrl}`);
@@ -374,6 +414,14 @@ export function SchoolsClient({
                             >
                               ⚙️ 이름/이메일/비밀번호 수정
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => impersonate(a.id)}
+                              disabled={impersonateBusyId === a.id}
+                              className="shrink-0 rounded-lg border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                            >
+                              {impersonateBusyId === a.id ? "로그인 중..." : "🛠️ 관리자로 로그인"}
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -398,6 +446,7 @@ export function SchoolsClient({
           </tbody>
         </table>
       </div>
+      {impersonateError && <p className="text-xs text-red-600">{impersonateError}</p>}
 
       <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5">
         <p className="mb-3 text-sm font-semibold text-slate-700">새 학교 추가</p>

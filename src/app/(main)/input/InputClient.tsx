@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonating } from "@/lib/useImpersonating";
 import {
   AUDIT_ACTION_LABEL,
   classLabel,
@@ -78,6 +79,7 @@ export function InputClient({
   const [historyLogs, setHistoryLogs] = useState<ScoreAuditLog[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, Profile>>({});
+  const impersonating = useImpersonating();
 
   const availableGrades = useMemo(
     () => [...new Set(classes.map((c) => c.grade))].sort() as (1 | 2 | 3)[],
@@ -733,7 +735,9 @@ export function InputClient({
         </div>
       )}
 
-      <p className="text-xs text-slate-400">로그인: {profile.name}</p>
+      <p className="text-xs text-slate-400">
+        로그인: {impersonating ? "총괄자 서민택" : profile.name}
+      </p>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DateWeatherCompact } from "@/components/DateWeatherWidget";
 import { useAccentColor } from "@/lib/useAccentColor";
+import { useImpersonating } from "@/lib/useImpersonating";
 import type { Role } from "@/lib/database.types";
 
 const LINKS = [
@@ -44,12 +45,18 @@ export function NavBar({
   const [timetableOpen, setTimetableOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [timetableError, setTimetableError] = useState(false);
+  const impersonating = useImpersonating();
   const accent = useAccentColor(logoUrl, orgName, schoolId);
 
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.replace(loginUrl);
+    if (impersonating) {
+      document.cookie = "impersonating=; path=/; max-age=0";
+      router.replace("/login");
+    } else {
+      router.replace(loginUrl);
+    }
     router.refresh();
   }
 
@@ -123,18 +130,22 @@ export function NavBar({
               🛠️ 관리자 페이지
             </Link>
           )}
-          <span className="whitespace-nowrap text-sm text-slate-500">{name}</span>
-          <Link
-            href="/change-password"
-            className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            🔑 비밀번호 변경
-          </Link>
+          <span className="whitespace-nowrap text-sm text-slate-500">
+            {impersonating ? "총괄자 서민택" : name}
+          </span>
+          {!impersonating && (
+            <Link
+              href="/change-password"
+              className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              🔑 비밀번호 변경
+            </Link>
+          )}
           <button
             onClick={handleSignOut}
             className="whitespace-nowrap rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
           >
-            로그아웃
+            {impersonating ? "🔙 총괄자로 돌아가기" : "로그아웃"}
           </button>
         </div>
       </div>
