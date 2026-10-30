@@ -326,11 +326,11 @@ export function SchoolsClient({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-400">
-              <th className="px-4 py-2">학교 이름</th>
-              <th className="px-4 py-2">로그인 주소</th>
+              <th className="w-56 px-4 py-2">학교 이름</th>
+              <th className="w-40 px-4 py-2">로그인 주소</th>
               <th className="px-4 py-2">관리자 계정</th>
-              <th className="px-4 py-2">최근 활동</th>
-              <th className="px-4 py-2">생성일</th>
+              <th className="w-24 whitespace-nowrap px-4 py-2">최근 활동</th>
+              <th className="w-28 whitespace-nowrap px-4 py-2">생성일</th>
             </tr>
           </thead>
           <tbody>
@@ -421,7 +421,7 @@ export function SchoolsClient({
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="whitespace-nowrap px-4 py-2.5">
                     {lastActivity[s.id] ? (
                       <span className="inline-flex items-center gap-1.5 text-slate-600">
                         <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
@@ -431,7 +431,7 @@ export function SchoolsClient({
                       <span className="text-slate-300">활동 없음</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-slate-400">
+                  <td className="whitespace-nowrap px-4 py-2.5 text-slate-400">
                     {new Date(s.created_at).toLocaleDateString("ko-KR")}
                   </td>
                 </tr>
