@@ -11,6 +11,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Vercel 프로젝트 설정(Environment Variables)에 CRON_SECRET을 등록해두면,
 // Vercel이 Cron 호출 시 자동으로 Authorization: Bearer <그 값> 헤더를 붙여
 // 보내준다 — 그 값이 여기서 확인하는 값과 일치할 때만 실행한다.
+//
+// vercel.json의 "0 19 */3 * *"는 UTC 기준이라, 한국시간(KST, UTC+9)으로는
+// 매 3일마다 새벽 4시에 실행된다.
 export async function GET(request: Request) {
   const expected = process.env.CRON_SECRET;
   if (!expected) {
