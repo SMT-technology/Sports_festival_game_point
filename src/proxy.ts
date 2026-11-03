@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   "/public-results",
   "/api/public-results",
   "/api/logo-proxy",
+  "/api/cron",
 ];
 
 export async function proxy(request: NextRequest) {
